@@ -17,6 +17,7 @@ postgresql = { module = "org.postgresql:postgresql" }
 
 flyway-core = { module = "org.flywaydb:flyway-core" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+spring-boot-flyway = { module = "org.springframework.boot:spring-boot-flyway" }
 
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 micrometer-tracing-bridge-otel = { module = "io.micrometer:micrometer-tracing-bridge-otel" }

@@ -1,0 +1,1 @@
+-- Baseline migration. Schema is added in subsequent migrations.

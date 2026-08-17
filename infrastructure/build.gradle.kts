@@ -20,6 +20,7 @@ dependencies {
 
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
+    implementation(libs.spring.boot.flyway)
     runtimeOnly(libs.postgresql)
 
     implementation(libs.micrometer.registry.prometheus)
