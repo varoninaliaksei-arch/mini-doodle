@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: mini-doodle
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mini_doodle
+    username: mini_doodle
+    password: mini_doodle
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
