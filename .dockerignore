@@ -1,0 +1,11 @@
+.git
+.idea
+.gradle
+.vscode
+build
+out
+*/build
+CLAUDE.md
+README.md
+.env
+*.log

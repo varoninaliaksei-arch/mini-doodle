@@ -1,6 +1,13 @@
 plugins {
+    id("java-library")
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
+    }
 }
 
 dependencies {
@@ -26,4 +33,8 @@ dependencies {
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     mainClass.set("com.minidoodle.infrastructure.InfrastructureApplication")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
