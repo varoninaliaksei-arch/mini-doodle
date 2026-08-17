@@ -9,5 +9,7 @@ out/
 HELP.md
 
 CLAUDE.md
+01-DECISIONS.md
+02-ARCHITECTURE.md
 
 .env
