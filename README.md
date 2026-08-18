@@ -80,12 +80,14 @@ instead, which is keyset-paginated via `cursor`.
 **4. Cancel the meeting**
 
 ```bash
-curl -s -X POST http://localhost:8080/meetings/<meeting id>/cancel
+curl -s -X POST http://localhost:8080/meetings/<meeting id>/cancel \
+  -H 'X-User-Id: 22222222-2222-2222-2222-222222222222'
 ```
-Returns `200` with the cancelled `MeetingResponse` and releases the slot
-back to `FREE` — the only path a booked slot returns to `FREE`. Deleting or
-modifying a booked slot directly returns `409` ("cancel the meeting
-first").
+`X-User-Id` must match the meeting's organizer (§6) — here, the id that
+booked it in step 2. Returns `200` with the cancelled `MeetingResponse`
+and releases the slot back to `FREE` — the only path a booked slot
+returns to `FREE`. Deleting or modifying a booked slot directly returns
+`409` ("cancel the meeting first").
 
 ## 4. Architecture at a glance
 
@@ -247,6 +249,36 @@ what was deliberately cut within the assignment's current scope:
   `X-User-Id` directly as `calendarId` (§4). Needed once a calendar has to
   hold more than an identity — e.g. a per-user timezone for rendering, or
   a single user owning more than one calendar.
+- The `scale` profile (nginx + 2 `app` replicas) — the race test
+  (`BookingRaceIT`, §10) is the mandatory proof that the exclusion
+  constraint holds; the profile itself was scoped as "if time remains"
+  and cut, since it proves the same guarantee isn't sitting in
+  application memory, which a single-process Testcontainers run can't
+  demonstrate on its own.
+- Ordering same-aggregate outbox events across `app` replicas — under the
+  (currently unbuilt) `scale` profile, two instances each running their
+  own `OutboxPublisher` poll with `FOR UPDATE SKIP LOCKED`, which lets a
+  second instance pick up a different unlocked row rather than wait; two
+  events for the same meeting (e.g. booked, then cancelled) aren't
+  guaranteed to publish in that order. Not an issue with one instance
+  (today's actual deployment); once a real broker exists, keying Kafka
+  partitions on the event's `aggregateId` restores per-aggregate
+  ordering for free.
+- Swapping `EventSink`'s `LoggingEventSink` implementation for a
+  `KafkaTemplate`-backed one — no write-path change, since the outbox
+  table and `OutboxPublisher` already exist for exactly this purpose
+  ([`docs/adr/0003-transactional-outbox.md`](docs/adr/0003-transactional-outbox.md)).
+  Deferred because no consumer exists yet to publish to.
+- Redis in front of `GET /availability`, but only as a cache and only if
+  Postgres read latency stops meeting SLA at a higher row count than
+  today's ~10⁴ slots — never as a lock, which would be a strictly weaker
+  guarantee than the exclusion constraint already in place regardless of
+  scale (§5).
+- PgBouncer, then read replicas for free/busy reads — the same `SCALE-1`
+  ladder already listed in §8, restated here because both are cut today,
+  not because the trigger differs: PgBouncer once connection count
+  approaches `max_connections`, replicas once read:write exceeds the
+  ~20:1 ratio already assumed at current scale (§5).
 
 ## 8. Scaling path
 
