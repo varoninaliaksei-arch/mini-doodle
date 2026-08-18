@@ -25,6 +25,11 @@ class MeetingRepositoryImpl implements MeetingRepository {
     }
 
     @Override
+    public Optional<Meeting> findByIdempotencyKey(String idempotencyKey) {
+        return jpaRepository.findByIdempotencyKey(idempotencyKey).map(mapper::toDomain);
+    }
+
+    @Override
     public Meeting save(Meeting meeting) {
         MeetingJpaEntity saved = jpaRepository.save(mapper.toEntity(meeting));
         return mapper.toDomain(saved);

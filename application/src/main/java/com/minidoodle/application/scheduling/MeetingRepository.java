@@ -9,5 +9,7 @@ public interface MeetingRepository {
 
     Optional<Meeting> findById(UUID id);
 
+    Optional<Meeting> findByIdempotencyKey(String idempotencyKey);
+
     Meeting save(Meeting meeting);
 }

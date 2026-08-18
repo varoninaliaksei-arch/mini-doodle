@@ -33,7 +33,7 @@ public final class Meeting {
         this.details = Objects.requireNonNull(details, "details must not be null");
         this.participants = List.copyOf(Objects.requireNonNull(participants, "participants must not be null"));
         this.status = Objects.requireNonNull(status, "status must not be null");
-        this.idempotencyKey = requireNonBlank(idempotencyKey, "idempotencyKey");
+        this.idempotencyKey = normalizeIdempotencyKey(idempotencyKey);
     }
 
     public static Meeting schedule(UUID slotId, MeetingDetails details, List<Participant> participants,
@@ -64,9 +64,14 @@ public final class Meeting {
         }
     }
 
-    private static String requireNonBlank(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " must not be blank");
+    /**
+     * SCOPE-1: Idempotency-Key is an optional HTTP header, so {@code null}
+     * is a valid value here (no key supplied). A supplied-but-blank string
+     * is rejected as a caller error.
+     */
+    private static String normalizeIdempotencyKey(String value) {
+        if (value != null && value.isBlank()) {
+            throw new IllegalArgumentException("idempotencyKey must not be blank when provided");
         }
         return value;
     }
