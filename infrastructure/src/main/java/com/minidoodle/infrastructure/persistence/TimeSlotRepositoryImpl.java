@@ -56,6 +56,7 @@ class TimeSlotRepositoryImpl implements TimeSlotRepository {
                         window.start(),
                         window.end(),
                         status.orElse(null),
+                        after.isPresent(),
                         after.map(TimeSlotCursor::startsAt).orElse(null),
                         after.map(TimeSlotCursor::id).orElse(null),
                         PageRequest.of(0, limit))
