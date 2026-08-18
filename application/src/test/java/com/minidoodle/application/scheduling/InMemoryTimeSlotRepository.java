@@ -14,6 +14,7 @@ class InMemoryTimeSlotRepository implements TimeSlotRepository {
 
     private final Map<UUID, TimeSlot> store = new HashMap<>();
     private RuntimeException nextSaveException;
+    private RuntimeException nextDeleteException;
 
     void seed(TimeSlot slot) {
         store.put(slot.id(), slot);
@@ -21,6 +22,14 @@ class InMemoryTimeSlotRepository implements TimeSlotRepository {
 
     void failNextSaveWith(RuntimeException exception) {
         this.nextSaveException = exception;
+    }
+
+    void failNextDeleteWith(RuntimeException exception) {
+        this.nextDeleteException = exception;
+    }
+
+    boolean contains(UUID id) {
+        return store.containsKey(id);
     }
 
     @Override
@@ -37,6 +46,16 @@ class InMemoryTimeSlotRepository implements TimeSlotRepository {
         }
         store.put(slot.id(), slot);
         return slot;
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        if (nextDeleteException != null) {
+            RuntimeException toThrow = nextDeleteException;
+            nextDeleteException = null;
+            throw toThrow;
+        }
+        store.remove(id);
     }
 
     @Override

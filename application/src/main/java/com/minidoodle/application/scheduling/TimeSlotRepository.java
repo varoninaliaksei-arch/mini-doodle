@@ -13,5 +13,7 @@ public interface TimeSlotRepository {
 
     TimeSlot save(TimeSlot slot);
 
+    void deleteById(UUID id);
+
     List<TimeSlot> findByCalendarAndWindow(UUID calendarId, TimeInterval window);
 }

@@ -33,6 +33,11 @@ class TimeSlotRepositoryImpl implements TimeSlotRepository {
     }
 
     @Override
+    public void deleteById(UUID id) {
+        jpaRepository.deleteById(id);
+    }
+
+    @Override
     public List<TimeSlot> findByCalendarAndWindow(UUID calendarId, TimeInterval window) {
         return jpaRepository.findOverlapping(calendarId, window.start(), window.end())
                 .stream()
