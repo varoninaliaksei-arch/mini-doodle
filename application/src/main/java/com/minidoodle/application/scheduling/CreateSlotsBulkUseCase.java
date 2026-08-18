@@ -31,6 +31,9 @@ public class CreateSlotsBulkUseCase {
 
     @Transactional
     public List<TimeSlot> execute(UUID calendarId, TimeInterval range, Duration slotDuration) {
+        if (slotDuration == null) {
+            throw new IllegalArgumentException("slotDuration must not be null");
+        }
         if (slotDuration.isZero() || slotDuration.isNegative()) {
             throw new IllegalArgumentException("slotDuration must be positive");
         }

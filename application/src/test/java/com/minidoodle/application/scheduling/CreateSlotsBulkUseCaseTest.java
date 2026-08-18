@@ -59,4 +59,33 @@ class CreateSlotsBulkUseCaseTest {
 
         assertThrows(SlotConflictException.class, () -> useCase.execute(calendarId, range, Duration.ofHours(1)));
     }
+
+    @Test
+    void rejectsNullSlotDuration() {
+        UUID calendarId = UUID.randomUUID();
+        Instant start = Instant.parse("2026-01-01T09:00:00Z");
+        TimeInterval range = new TimeInterval(start, start.plus(Duration.ofHours(2)));
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(calendarId, range, null));
+        assertTrue(repository.findByCalendarAndWindow(calendarId, range).isEmpty());
+    }
+
+    @Test
+    void rejectsZeroSlotDuration() {
+        UUID calendarId = UUID.randomUUID();
+        Instant start = Instant.parse("2026-01-01T09:00:00Z");
+        TimeInterval range = new TimeInterval(start, start.plus(Duration.ofHours(2)));
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(calendarId, range, Duration.ZERO));
+    }
+
+    @Test
+    void rejectsNegativeSlotDuration() {
+        UUID calendarId = UUID.randomUUID();
+        Instant start = Instant.parse("2026-01-01T09:00:00Z");
+        TimeInterval range = new TimeInterval(start, start.plus(Duration.ofHours(2)));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> useCase.execute(calendarId, range, Duration.ofMinutes(-1)));
+    }
 }

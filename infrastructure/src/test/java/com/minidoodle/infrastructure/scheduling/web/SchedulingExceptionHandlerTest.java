@@ -32,6 +32,7 @@ import com.minidoodle.domain.scheduling.TimeInterval;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -196,6 +197,41 @@ class SchedulingExceptionHandlerTest {
                         .header("X-User-Id", SLOT_ID.toString())
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new CreateSlotRequest(START, END))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/invalid-request"));
+    }
+
+    /**
+     * Reproduces the missing-field-deserializes-to-null path directly: the
+     * JSON body omits "slotDuration" entirely (Jackson leaves the record
+     * component null rather than failing), the controller passes that null
+     * straight through, and the use case is stubbed to throw exactly what
+     * {@code CreateSlotsBulkUseCase} now throws for a null duration.
+     */
+    @Test
+    void bulkMissingSlotDurationMapsTo400() throws Exception {
+        when(createSlotsBulkUseCase.execute(any(), any(), isNull()))
+                .thenThrow(new IllegalArgumentException("slotDuration must not be null"));
+
+        mockMvc.perform(post("/slots/bulk")
+                        .header("X-User-Id", SLOT_ID.toString())
+                        .contentType("application/json")
+                        .content("{\"startsAt\":\"" + START + "\",\"endsAt\":\"" + END + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/invalid-request"));
+    }
+
+    /**
+     * A missing startsAt never reaches the use case at all — SlotController
+     * builds the {@link TimeInterval} inline, and its compact constructor
+     * already rejects a null start/end.
+     */
+    @Test
+    void bulkMissingStartsAtMapsTo400() throws Exception {
+        mockMvc.perform(post("/slots/bulk")
+                        .header("X-User-Id", SLOT_ID.toString())
+                        .contentType("application/json")
+                        .content("{\"endsAt\":\"" + END + "\",\"slotDuration\":\"PT30M\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("/problems/invalid-request"));
     }
