@@ -5,7 +5,6 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 
 @Entity
@@ -21,8 +20,12 @@ public class OutboxEventJpaEntity {
     @Column(name = "type", nullable = false)
     private String type;
 
-    @Lob
-    @Column(name = "payload", nullable = false)
+    /**
+     * Not {@code @Lob} — that maps a String to Postgres's large-object
+     * {@code oid} type via Hibernate, which doesn't match the migration's
+     * plain {@code TEXT} column.
+     */
+    @Column(name = "payload", nullable = false, columnDefinition = "text")
     private String payload;
 
     protected OutboxEventJpaEntity() {
