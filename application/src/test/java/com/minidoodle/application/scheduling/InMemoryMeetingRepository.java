@@ -1,6 +1,7 @@
 package com.minidoodle.application.scheduling;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,11 @@ class InMemoryMeetingRepository implements MeetingRepository {
         return store.values().stream()
                 .filter(m -> idempotencyKey.equals(m.idempotencyKey()))
                 .findFirst();
+    }
+
+    @Override
+    public List<Meeting> findBySlotId(UUID slotId) {
+        return store.values().stream().filter(m -> slotId.equals(m.slotId())).toList();
     }
 
     @Override

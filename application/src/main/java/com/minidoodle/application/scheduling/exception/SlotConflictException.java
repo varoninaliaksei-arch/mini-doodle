@@ -13,4 +13,9 @@ public class SlotConflictException extends RuntimeException {
     public SlotConflictException(UUID calendarId, TimeInterval interval, Throwable cause) {
         super("Slot %s overlaps an existing slot in calendar %s".formatted(interval, calendarId), cause);
     }
+
+    /** Lost a concurrent race to book/save the same slot (TECH-1, SCOPE-2). */
+    public SlotConflictException(UUID slotId, Throwable cause) {
+        super("Slot %s was booked concurrently".formatted(slotId), cause);
+    }
 }

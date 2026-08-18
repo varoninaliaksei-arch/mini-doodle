@@ -4,10 +4,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;
 
 import tools.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.domain.scheduling.Meeting;
 import com.minidoodle.domain.scheduling.MeetingDetails;
@@ -50,7 +52,24 @@ public class CreateBookingUseCase {
         slot.book();
         Meeting meeting = Meeting.schedule(slotId, details, participants, idempotencyKey);
 
-        timeSlotRepository.save(slot);
+        try {
+            timeSlotRepository.save(slot);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // Lost the race for this slot. Once JPA raises this, the
+            // current transaction is marked rollback-only regardless of
+            // whether this catch block handles it - there is no reading
+            // the winner's row from inside a poisoned transaction. A clean
+            // 409 is the correct, standard contract here (matching how
+            // Idempotency-Key races are documented elsewhere, e.g.
+            // Stripe's API): the caller retries with the same key and gets
+            // the winner's meeting back through the ordinary short-circuit
+            // above, in a fresh transaction. Same exception type as the
+            // exclusion-constraint conflict (TECH-1) - both are "this slot
+            // is already spoken for", just caught at different layers -
+            // so clients get the same /problems/slot-conflict either way.
+            throw new SlotConflictException(slotId, e);
+        }
+
         Meeting saved = meetingRepository.save(meeting);
 
         meeting.pullEvents().forEach(event -> outboxEventRepository.save(outboxEventFactory.from(event)));

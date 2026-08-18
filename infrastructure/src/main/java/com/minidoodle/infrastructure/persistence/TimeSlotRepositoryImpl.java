@@ -29,9 +29,17 @@ class TimeSlotRepositoryImpl implements TimeSlotRepository {
         return jpaRepository.findById(id).map(mapper::toDomain);
     }
 
+    /**
+     * saveAndFlush, not save: Hibernate otherwise defers the actual
+     * UPDATE/INSERT to transaction-commit time, past the point where
+     * callers try/catch DataIntegrityViolationException or
+     * ObjectOptimisticLockingFailureException around this call (TECH-1,
+     * SCOPE-2) - an exception raised at the outer @Transactional commit
+     * boundary can't be caught by application-layer code at all.
+     */
     @Override
     public TimeSlot save(TimeSlot slot) {
-        TimeSlotJpaEntity saved = jpaRepository.save(mapper.toEntity(slot));
+        TimeSlotJpaEntity saved = jpaRepository.saveAndFlush(mapper.toEntity(slot));
         return mapper.toDomain(saved);
     }
 

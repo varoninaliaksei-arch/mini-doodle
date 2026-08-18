@@ -39,3 +39,35 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// Testcontainers-backed integration tests (real postgres:17, real Spring
+// context) are Docker-dependent and slow - kept out of the default `test`/
+// `check`/`build` graph so those stay fast and Docker-independent. Run
+// explicitly via `./gradlew integrationTest`.
+sourceSets {
+    create("integrationTest") {
+        java.srcDir("src/integrationTest/java")
+        resources.srcDir("src/integrationTest/resources")
+        compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+        runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+    }
+}
+
+val integrationTestImplementation: Configuration by configurations.getting {
+    extendsFrom(configurations.testImplementation.get())
+}
+configurations["integrationTestRuntimeOnly"].extendsFrom(configurations.testRuntimeOnly.get())
+
+dependencies {
+    integrationTestImplementation(libs.testcontainers.postgresql)
+    integrationTestImplementation(libs.testcontainers.junit.jupiter)
+}
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs Testcontainers-backed integration tests (requires Docker)."
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter(tasks.test)
+}

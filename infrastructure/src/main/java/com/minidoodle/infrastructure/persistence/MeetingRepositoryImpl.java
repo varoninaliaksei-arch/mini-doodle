@@ -1,5 +1,6 @@
 package com.minidoodle.infrastructure.persistence;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +28,11 @@ class MeetingRepositoryImpl implements MeetingRepository {
     @Override
     public Optional<Meeting> findByIdempotencyKey(String idempotencyKey) {
         return jpaRepository.findByIdempotencyKey(idempotencyKey).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<Meeting> findBySlotId(UUID slotId) {
+        return jpaRepository.findBySlotId(slotId).stream().map(mapper::toDomain).toList();
     }
 
     @Override
