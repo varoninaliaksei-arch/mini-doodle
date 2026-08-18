@@ -36,9 +36,10 @@ class MeetingControllerTest {
         UUID slotId = UUID.randomUUID();
         Meeting meeting = Meeting.schedule(slotId, new MeetingDetails("Sync", "d", organizerId), List.of(), "key-1");
         meeting.cancel();
-        when(cancelMeetingUseCase.execute(meeting.id())).thenReturn(meeting);
+        when(cancelMeetingUseCase.execute(meeting.id(), organizerId)).thenReturn(meeting);
 
-        mockMvc.perform(post("/meetings/{id}/cancel", meeting.id()))
+        mockMvc.perform(post("/meetings/{id}/cancel", meeting.id())
+                        .header("X-User-Id", organizerId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
     }

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
+import com.minidoodle.application.scheduling.exception.NotOwnerException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.domain.scheduling.Meeting;
 import com.minidoodle.domain.scheduling.MeetingDetails;
@@ -31,7 +32,8 @@ class CancelMeetingUseCaseTest {
 
     private static final TimeInterval INTERVAL =
             new TimeInterval(Instant.parse("2026-01-01T10:00:00Z"), Instant.parse("2026-01-01T11:00:00Z"));
-    private final MeetingDetails details = new MeetingDetails("Sync", "weekly sync", UUID.randomUUID());
+    private final UUID organizerId = UUID.randomUUID();
+    private final MeetingDetails details = new MeetingDetails("Sync", "weekly sync", organizerId);
     private final List<Participant> participants = List.of(new Participant("a@example.com", "Alice", null));
 
     @Test
@@ -43,7 +45,7 @@ class CancelMeetingUseCaseTest {
         meeting.pullEvents();
         meetingRepository.seed(meeting);
 
-        Meeting cancelled = useCase.execute(meeting.id());
+        Meeting cancelled = useCase.execute(meeting.id(), organizerId);
 
         assertEquals(MeetingStatus.CANCELLED, cancelled.status());
         assertEquals(SlotStatus.FREE, timeSlotRepository.findById(slotId).orElseThrow().status());
@@ -54,7 +56,7 @@ class CancelMeetingUseCaseTest {
 
     @Test
     void meetingNotFoundThrows() {
-        assertThrows(MeetingNotFoundException.class, () -> useCase.execute(UUID.randomUUID()));
+        assertThrows(MeetingNotFoundException.class, () -> useCase.execute(UUID.randomUUID(), organizerId));
     }
 
     @Test
@@ -63,6 +65,20 @@ class CancelMeetingUseCaseTest {
         meeting.pullEvents();
         meetingRepository.seed(meeting);
 
-        assertThrows(SlotNotFoundException.class, () -> useCase.execute(meeting.id()));
+        assertThrows(SlotNotFoundException.class, () -> useCase.execute(meeting.id(), organizerId));
+    }
+
+    @Test
+    void rejectsCallerWhoIsNotTheOrganizer() {
+        UUID slotId = UUID.randomUUID();
+        TimeSlot bookedSlot = new TimeSlot(slotId, UUID.randomUUID(), INTERVAL, SlotStatus.BOOKED, 0L);
+        timeSlotRepository.seed(bookedSlot);
+        Meeting meeting = Meeting.schedule(slotId, details, participants, "key-1");
+        meeting.pullEvents();
+        meetingRepository.seed(meeting);
+
+        assertThrows(NotOwnerException.class, () -> useCase.execute(meeting.id(), UUID.randomUUID()));
+        assertEquals(MeetingStatus.SCHEDULED, meetingRepository.findById(meeting.id()).orElseThrow().status());
+        assertEquals(SlotStatus.BOOKED, timeSlotRepository.findById(slotId).orElseThrow().status());
     }
 }

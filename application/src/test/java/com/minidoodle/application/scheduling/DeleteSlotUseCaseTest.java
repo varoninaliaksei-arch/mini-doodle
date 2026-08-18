@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
+import com.minidoodle.application.scheduling.exception.NotOwnerException;
 import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.application.scheduling.exception.SlotVersionConflictException;
@@ -27,43 +28,57 @@ class DeleteSlotUseCaseTest {
 
     @Test
     void deletesAFreeSlot() {
-        TimeSlot slot = new TimeSlot(UUID.randomUUID(), UUID.randomUUID(), INTERVAL, SlotStatus.FREE, 0L);
+        UUID ownerId = UUID.randomUUID();
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), ownerId, INTERVAL, SlotStatus.FREE, 0L);
         repository.seed(slot);
 
-        useCase.execute(slot.id(), 0L);
+        useCase.execute(slot.id(), ownerId, 0L);
 
         assertFalse(repository.contains(slot.id()));
     }
 
     @Test
     void rejectsDeleteOfABookedSlotAndLeavesItInPlace() {
-        TimeSlot slot = new TimeSlot(UUID.randomUUID(), UUID.randomUUID(), INTERVAL, SlotStatus.BOOKED, 0L);
+        UUID ownerId = UUID.randomUUID();
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), ownerId, INTERVAL, SlotStatus.BOOKED, 0L);
         repository.seed(slot);
 
-        assertThrows(SlotBookedException.class, () -> useCase.execute(slot.id(), 0L));
+        assertThrows(SlotBookedException.class, () -> useCase.execute(slot.id(), ownerId, 0L));
         assertTrue(repository.contains(slot.id()));
     }
 
     @Test
     void rejectsStaleVersion() {
-        TimeSlot slot = new TimeSlot(UUID.randomUUID(), UUID.randomUUID(), INTERVAL, SlotStatus.FREE, 3L);
+        UUID ownerId = UUID.randomUUID();
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), ownerId, INTERVAL, SlotStatus.FREE, 3L);
         repository.seed(slot);
 
-        assertThrows(SlotVersionConflictException.class, () -> useCase.execute(slot.id(), 2L));
+        assertThrows(SlotVersionConflictException.class, () -> useCase.execute(slot.id(), ownerId, 2L));
         assertTrue(repository.contains(slot.id()));
     }
 
     @Test
     void slotNotFoundThrows() {
-        assertThrows(SlotNotFoundException.class, () -> useCase.execute(UUID.randomUUID(), 0L));
+        assertThrows(SlotNotFoundException.class, () -> useCase.execute(UUID.randomUUID(), UUID.randomUUID(), 0L));
+    }
+
+    @Test
+    void rejectsCallerWhoIsNotTheOwner() {
+        UUID ownerId = UUID.randomUUID();
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), ownerId, INTERVAL, SlotStatus.FREE, 0L);
+        repository.seed(slot);
+
+        assertThrows(NotOwnerException.class, () -> useCase.execute(slot.id(), UUID.randomUUID(), 0L));
+        assertTrue(repository.contains(slot.id()));
     }
 
     @Test
     void translatesOptimisticLockFailureIntoSlotVersionConflict() {
-        TimeSlot slot = new TimeSlot(UUID.randomUUID(), UUID.randomUUID(), INTERVAL, SlotStatus.FREE, 0L);
+        UUID ownerId = UUID.randomUUID();
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), ownerId, INTERVAL, SlotStatus.FREE, 0L);
         repository.seed(slot);
         repository.failNextDeleteWith(new ObjectOptimisticLockingFailureException(TimeSlot.class, slot.id()));
 
-        assertThrows(SlotVersionConflictException.class, () -> useCase.execute(slot.id(), 0L));
+        assertThrows(SlotVersionConflictException.class, () -> useCase.execute(slot.id(), ownerId, 0L));
     }
 }

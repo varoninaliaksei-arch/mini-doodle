@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,8 +24,8 @@ class MeetingController {
     }
 
     @PostMapping("/{id}/cancel")
-    MeetingResponse cancel(@PathVariable UUID id) {
-        Meeting cancelled = cancelMeetingUseCase.execute(id);
+    MeetingResponse cancel(@PathVariable UUID id, @RequestHeader("X-User-Id") UUID callerId) {
+        Meeting cancelled = cancelMeetingUseCase.execute(id, callerId);
         return mapper.toResponse(cancelled);
     }
 }

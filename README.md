@@ -194,6 +194,16 @@ unneeded machinery:
 
 - **`X-User-Id` header stub, not real auth.** No JWT/OAuth — out of scope
   for this assignment; the header stands in for an authenticated identity.
+  It's enforced uniformly, though: every mutation (`PATCH`/`DELETE
+  /slots/{id}`, `POST /slots/{id}/block`/`unblock`,
+  `POST /meetings/{id}/cancel`, not just creation) checks the caller's
+  `X-User-Id` against the resource's own recorded owner and returns `403`
+  on a mismatch — see
+  [`docs/adr/0005-uniform-ownership-checks-on-mutations.md`](docs/adr/0005-uniform-ownership-checks-on-mutations.md)
+  for why partial enforcement (checked on create, not on later mutation)
+  was rejected in favor of applying the same stub check everywhere it can
+  meaningfully apply, rather than leaving it real-auth-shaped in some
+  places and absent in others.
 - **No participant notifications or RSVP.** Participants are recorded as
   metadata (email, display name) on the meeting; no invitation-delivery
   channel exists, so an RSVP/response field could never be populated —

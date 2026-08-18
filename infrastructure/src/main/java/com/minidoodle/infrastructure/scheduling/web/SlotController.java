@@ -76,15 +76,17 @@ class SlotController {
     }
 
     @PatchMapping("/{id}")
-    SlotResponse update(@PathVariable UUID id, @RequestBody UpdateSlotRequest request) {
-        TimeSlot updated = updateSlotUseCase.execute(id, Optional.ofNullable(request.startsAt()),
+    SlotResponse update(@PathVariable UUID id, @RequestHeader("X-User-Id") UUID callerId,
+            @RequestBody UpdateSlotRequest request) {
+        TimeSlot updated = updateSlotUseCase.execute(id, callerId, Optional.ofNullable(request.startsAt()),
                 Optional.ofNullable(request.endsAt()), request.version());
         return mapper.toResponse(updated);
     }
 
     @DeleteMapping("/{id}")
-    ResponseEntity<Void> delete(@PathVariable UUID id, @RequestBody DeleteSlotRequest request) {
-        deleteSlotUseCase.execute(id, request.version());
+    ResponseEntity<Void> delete(@PathVariable UUID id, @RequestHeader("X-User-Id") UUID callerId,
+            @RequestBody DeleteSlotRequest request) {
+        deleteSlotUseCase.execute(id, callerId, request.version());
         return ResponseEntity.noContent().build();
     }
 

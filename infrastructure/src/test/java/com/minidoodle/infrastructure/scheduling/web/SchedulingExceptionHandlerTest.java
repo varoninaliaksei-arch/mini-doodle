@@ -87,10 +87,11 @@ class SchedulingExceptionHandlerTest {
 
     @Test
     void slotBookedMapsTo409WithDistinctType() throws Exception {
-        when(updateSlotUseCase.execute(any(), any(), any(), anyLong()))
+        when(updateSlotUseCase.execute(any(), any(), any(), any(), anyLong()))
                 .thenThrow(new SlotBookedException(SLOT_ID));
 
         mockMvc.perform(patch("/slots/{id}", SLOT_ID)
+                        .header("X-User-Id", SLOT_ID.toString())
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new UpdateSlotRequest(null, null, 0L))))
                 .andExpect(status().isConflict())
@@ -100,9 +101,10 @@ class SchedulingExceptionHandlerTest {
     @Test
     void slotVersionConflictMapsTo409WithDistinctType() throws Exception {
         doThrow(new SlotVersionConflictException(SLOT_ID, 1L, 2L))
-                .when(deleteSlotUseCase).execute(any(), anyLong());
+                .when(deleteSlotUseCase).execute(any(), any(), anyLong());
 
         mockMvc.perform(delete("/slots/{id}", SLOT_ID)
+                        .header("X-User-Id", SLOT_ID.toString())
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new DeleteSlotRequest(1L))))
                 .andExpect(status().isConflict())
@@ -111,10 +113,11 @@ class SchedulingExceptionHandlerTest {
 
     @Test
     void slotNotFoundMapsTo404() throws Exception {
-        when(updateSlotUseCase.execute(any(), any(), any(), anyLong()))
+        when(updateSlotUseCase.execute(any(), any(), any(), any(), anyLong()))
                 .thenThrow(new SlotNotFoundException(SLOT_ID));
 
         mockMvc.perform(patch("/slots/{id}", SLOT_ID)
+                        .header("X-User-Id", SLOT_ID.toString())
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new UpdateSlotRequest(null, null, 0L))))
                 .andExpect(status().isNotFound())
@@ -137,9 +140,11 @@ class SchedulingExceptionHandlerTest {
     @Test
     void meetingNotFoundMapsTo404() throws Exception {
         UUID meetingId = UUID.randomUUID();
-        when(cancelMeetingUseCase.execute(meetingId)).thenThrow(new MeetingNotFoundException(meetingId));
+        UUID callerId = UUID.randomUUID();
+        when(cancelMeetingUseCase.execute(meetingId, callerId)).thenThrow(new MeetingNotFoundException(meetingId));
 
-        mockMvc.perform(post("/meetings/{id}/cancel", meetingId))
+        mockMvc.perform(post("/meetings/{id}/cancel", meetingId)
+                        .header("X-User-Id", callerId.toString()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("/problems/meeting-not-found"));
     }

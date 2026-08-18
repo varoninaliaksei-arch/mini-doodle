@@ -8,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.minidoodle.application.scheduling.exception.NotOwnerException;
 import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
@@ -18,7 +19,8 @@ import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
  * PATCH /slots/{id}: both fields optional, merged with the slot's current
- * interval before validation (02-ARCHITECTURE.md §4).
+ * interval before validation (02-ARCHITECTURE.md §4). Owner-only, per the
+ * uniform ownership-check policy (see README "Assumptions & trade-offs").
  */
 public class UpdateSlotUseCase {
 
@@ -29,11 +31,14 @@ public class UpdateSlotUseCase {
     }
 
     @Transactional
-    public TimeSlot execute(UUID slotId, Optional<Instant> newStart, Optional<Instant> newEnd,
+    public TimeSlot execute(UUID slotId, UUID callerId, Optional<Instant> newStart, Optional<Instant> newEnd,
             long expectedVersion) {
         TimeSlot current = timeSlotRepository.findById(slotId)
                 .orElseThrow(() -> new SlotNotFoundException(slotId));
 
+        if (!current.calendarId().equals(callerId)) {
+            throw new NotOwnerException("slot", slotId);
+        }
         if (current.status() == SlotStatus.BOOKED) {
             throw new SlotBookedException(slotId);
         }

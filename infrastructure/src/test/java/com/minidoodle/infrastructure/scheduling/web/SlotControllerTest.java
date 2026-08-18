@@ -107,28 +107,31 @@ class SlotControllerTest {
         UUID ownerId = UUID.randomUUID();
         Instant newStart = START.minusSeconds(1800);
         TimeSlot updated = new TimeSlot(slotId, ownerId, new TimeInterval(newStart, END), SlotStatus.FREE, 1L);
-        when(updateSlotUseCase.execute(eq(slotId), any(), any(), anyLong())).thenReturn(updated);
+        when(updateSlotUseCase.execute(eq(slotId), eq(ownerId), any(), any(), anyLong())).thenReturn(updated);
 
         mockMvc.perform(patch("/slots/{id}", slotId)
+                        .header("X-User-Id", ownerId.toString())
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new UpdateSlotRequest(newStart, null, 0L))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.startsAt").value(newStart.toString()))
                 .andExpect(jsonPath("$.version").value(1));
 
-        verify(updateSlotUseCase).execute(slotId, Optional.of(newStart), Optional.empty(), 0L);
+        verify(updateSlotUseCase).execute(slotId, ownerId, Optional.of(newStart), Optional.empty(), 0L);
     }
 
     @Test
     void deleteSlotReturns204() throws Exception {
         UUID slotId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
 
         mockMvc.perform(delete("/slots/{id}", slotId)
+                        .header("X-User-Id", ownerId.toString())
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new DeleteSlotRequest(2L))))
                 .andExpect(status().isNoContent());
 
-        verify(deleteSlotUseCase).execute(slotId, 2L);
+        verify(deleteSlotUseCase).execute(slotId, ownerId, 2L);
     }
 
     @Test
