@@ -3,7 +3,7 @@ package com.minidoodle.infrastructure.scheduling.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import com.minidoodle.application.scheduling.CancelMeetingUseCase;
 import com.minidoodle.application.scheduling.CreateBookingUseCase;

@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;

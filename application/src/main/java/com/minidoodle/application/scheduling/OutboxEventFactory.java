@@ -2,14 +2,15 @@ package com.minidoodle.application.scheduling;
 
 import java.util.UUID;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import com.minidoodle.domain.scheduling.events.MeetingEvent;
 
 /**
  * Placeholder serialization (plain JSON via Jackson) — finalized when the
- * outbox publisher is implemented.
+ * outbox publisher is implemented. Jackson 3's writeValueAsString throws
+ * JacksonException, which is unchecked (unlike Jackson 2's checked
+ * JsonProcessingException) — no wrapping needed.
  */
 class OutboxEventFactory {
 
@@ -20,11 +21,7 @@ class OutboxEventFactory {
     }
 
     OutboxEvent from(MeetingEvent event) {
-        try {
-            String payload = objectMapper.writeValueAsString(event);
-            return new OutboxEvent(UUID.randomUUID(), event.meetingId(), event.getClass().getSimpleName(), payload);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize " + event.getClass().getSimpleName(), e);
-        }
+        String payload = objectMapper.writeValueAsString(event);
+        return new OutboxEvent(UUID.randomUUID(), event.meetingId(), event.getClass().getSimpleName(), payload);
     }
 }
