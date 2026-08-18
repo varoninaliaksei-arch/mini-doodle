@@ -49,7 +49,17 @@ public class CreateBookingUseCase {
         TimeSlot slot = timeSlotRepository.findById(slotId)
                 .orElseThrow(() -> new SlotNotFoundException(slotId));
 
-        slot.book();
+        try {
+            slot.book();
+        } catch (IllegalStateException e) {
+            // Same condition as the race below (someone already has this
+            // slot) - just caught sequentially, via the loaded status,
+            // instead of at save() via the exclusion constraint/optimistic
+            // lock. Both are "this slot is already spoken for" and must
+            // surface as the same exception so callers/metrics don't have
+            // to distinguish a distinction that isn't theirs to care about.
+            throw new SlotConflictException(slotId, e);
+        }
         Meeting meeting = Meeting.schedule(slotId, details, participants, idempotencyKey);
 
         try {

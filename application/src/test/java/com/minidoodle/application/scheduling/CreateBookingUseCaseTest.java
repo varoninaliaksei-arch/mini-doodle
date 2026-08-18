@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import tools.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.domain.scheduling.Meeting;
 import com.minidoodle.domain.scheduling.MeetingDetails;
@@ -70,12 +71,20 @@ class CreateBookingUseCaseTest {
                 () -> useCase.execute(UUID.randomUUID(), details, participants, "key-1"));
     }
 
+    /**
+     * Sequential re-booking of an already-BOOKED slot (no race involved -
+     * the slot was already BOOKED before this call started) must surface
+     * the same {@link SlotConflictException} as the concurrent-race path
+     * (caught via optimistic locking at {@code save()}) - both are "this
+     * slot is already spoken for", and callers/metrics shouldn't have to
+     * distinguish a cause that isn't theirs to care about.
+     */
     @Test
-    void bookingAnAlreadyBookedSlotPropagatesIllegalStateException() {
+    void bookingAnAlreadyBookedSlotThrowsSlotConflict() {
         TimeSlot slot = new TimeSlot(UUID.randomUUID(), UUID.randomUUID(), INTERVAL, SlotStatus.BOOKED, 0L);
         timeSlotRepository.seed(slot);
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(SlotConflictException.class,
                 () -> useCase.execute(slot.id(), details, participants, "key-1"));
     }
 }
