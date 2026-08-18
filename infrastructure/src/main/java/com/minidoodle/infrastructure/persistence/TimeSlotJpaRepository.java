@@ -4,9 +4,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import com.minidoodle.domain.scheduling.SlotStatus;
 
 interface TimeSlotJpaRepository extends JpaRepository<TimeSlotJpaEntity, UUID> {
 
@@ -20,4 +23,30 @@ interface TimeSlotJpaRepository extends JpaRepository<TimeSlotJpaEntity, UUID> {
             @Param("calendarId") UUID calendarId,
             @Param("windowStart") Instant windowStart,
             @Param("windowEnd") Instant windowEnd);
+
+    /**
+     * Keyset page ordered by {@code (starts_at, id)}, matching the B-tree
+     * index (02-ARCHITECTURE.md §10). {@code status}/{@code afterStartsAt}/
+     * {@code afterId} are nullable — a null status skips the status filter,
+     * a null afterStartsAt starts from the beginning of the window.
+     */
+    @Query("""
+            select t from TimeSlotJpaEntity t
+            where t.calendarId = :calendarId
+              and t.startsAt < :windowEnd
+              and t.endsAt > :windowStart
+              and (:status is null or t.status = :status)
+              and (:afterStartsAt is null
+                   or t.startsAt > :afterStartsAt
+                   or (t.startsAt = :afterStartsAt and t.id > :afterId))
+            order by t.startsAt asc, t.id asc
+            """)
+    List<TimeSlotJpaEntity> findPage(
+            @Param("calendarId") UUID calendarId,
+            @Param("windowStart") Instant windowStart,
+            @Param("windowEnd") Instant windowEnd,
+            @Param("status") SlotStatus status,
+            @Param("afterStartsAt") Instant afterStartsAt,
+            @Param("afterId") UUID afterId,
+            Pageable pageable);
 }

@@ -1,11 +1,13 @@
 package com.minidoodle.application.scheduling;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
@@ -63,5 +65,25 @@ class InMemoryTimeSlotRepository implements TimeSlotRepository {
         return store.values().stream()
                 .filter(s -> s.calendarId().equals(calendarId) && s.interval().overlaps(window))
                 .toList();
+    }
+
+    @Override
+    public List<TimeSlot> findPage(UUID calendarId, TimeInterval window, Optional<SlotStatus> status,
+            Optional<TimeSlotCursor> after, int limit) {
+        return store.values().stream()
+                .filter(s -> s.calendarId().equals(calendarId) && s.interval().overlaps(window))
+                .filter(s -> status.isEmpty() || s.status() == status.get())
+                .filter(s -> after.isEmpty() || isAfter(s, after.get()))
+                .sorted(Comparator.comparing((TimeSlot s) -> s.interval().start()).thenComparing(TimeSlot::id))
+                .limit(limit)
+                .toList();
+    }
+
+    private static boolean isAfter(TimeSlot slot, TimeSlotCursor cursor) {
+        int comparison = slot.interval().start().compareTo(cursor.startsAt());
+        if (comparison != 0) {
+            return comparison > 0;
+        }
+        return slot.id().compareTo(cursor.id()) > 0;
     }
 }

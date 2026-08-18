@@ -16,18 +16,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
+import com.minidoodle.application.scheduling.ListSlotsUseCase;
+import com.minidoodle.application.scheduling.SlotPage;
+import com.minidoodle.application.scheduling.TimeSlotCursor;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -40,6 +45,7 @@ class SlotControllerTest {
     private final CreateSlotsBulkUseCase createSlotsBulkUseCase = mock(CreateSlotsBulkUseCase.class);
     private final UpdateSlotUseCase updateSlotUseCase = mock(UpdateSlotUseCase.class);
     private final DeleteSlotUseCase deleteSlotUseCase = mock(DeleteSlotUseCase.class);
+    private final ListSlotsUseCase listSlotsUseCase = mock(ListSlotsUseCase.class);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private MockMvc mockMvc;
@@ -50,7 +56,7 @@ class SlotControllerTest {
     @BeforeEach
     void setUp() {
         SlotController controller = new SlotController(createSlotUseCase, createSlotsBulkUseCase, updateSlotUseCase,
-                deleteSlotUseCase, new SlotWebMapper());
+                deleteSlotUseCase, listSlotsUseCase, new SlotWebMapper());
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -119,5 +125,54 @@ class SlotControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(deleteSlotUseCase).execute(slotId, 2L);
+    }
+
+    @Test
+    void listSlotsReturnsPageWithEncodedNextCursor() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), ownerId, new TimeInterval(START, END), SlotStatus.FREE, 0L);
+        when(listSlotsUseCase.execute(eq(ownerId), any(), eq(Optional.empty()), eq(Optional.empty()), anyInt()))
+                .thenReturn(new SlotPage(List.of(slot), true));
+
+        mockMvc.perform(get("/slots")
+                        .param("ownerId", ownerId.toString())
+                        .param("from", START.minusSeconds(3600).toString())
+                        .param("to", END.plusSeconds(3600).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.nextCursor").value(SlotCursorCodec.encode(new TimeSlotCursor(START, slot.id()))));
+    }
+
+    @Test
+    void listSlotsOmitsNextCursorOnLastPage() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        when(listSlotsUseCase.execute(eq(ownerId), any(), eq(Optional.empty()), eq(Optional.empty()), anyInt()))
+                .thenReturn(new SlotPage(List.of(), false));
+
+        mockMvc.perform(get("/slots")
+                        .param("ownerId", ownerId.toString())
+                        .param("from", START.toString())
+                        .param("to", END.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextCursor").doesNotExist());
+    }
+
+    @Test
+    void listSlotsDecodesCursorAndFiltersByStatus() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        TimeSlotCursor cursor = new TimeSlotCursor(START, UUID.randomUUID());
+        when(listSlotsUseCase.execute(eq(ownerId), any(), eq(Optional.of(SlotStatus.FREE)), eq(Optional.of(cursor)),
+                anyInt())).thenReturn(new SlotPage(List.of(), false));
+
+        mockMvc.perform(get("/slots")
+                        .param("ownerId", ownerId.toString())
+                        .param("from", START.toString())
+                        .param("to", END.toString())
+                        .param("status", "FREE")
+                        .param("cursor", SlotCursorCodec.encode(cursor)))
+                .andExpect(status().isOk());
+
+        verify(listSlotsUseCase).execute(eq(ownerId), any(), eq(Optional.of(SlotStatus.FREE)),
+                eq(Optional.of(cursor)), anyInt());
     }
 }

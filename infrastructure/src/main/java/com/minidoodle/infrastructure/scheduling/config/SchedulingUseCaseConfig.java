@@ -10,6 +10,8 @@ import com.minidoodle.application.scheduling.CreateBookingUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
+import com.minidoodle.application.scheduling.GetAvailabilityUseCase;
+import com.minidoodle.application.scheduling.ListSlotsUseCase;
 import com.minidoodle.application.scheduling.MeetingRepository;
 import com.minidoodle.application.scheduling.OutboxEventRepository;
 import com.minidoodle.application.scheduling.TimeSlotRepository;
@@ -40,6 +42,16 @@ class SchedulingUseCaseConfig {
     @Bean
     DeleteSlotUseCase deleteSlotUseCase(TimeSlotRepository timeSlotRepository) {
         return new DeleteSlotUseCase(timeSlotRepository);
+    }
+
+    @Bean
+    ListSlotsUseCase listSlotsUseCase(TimeSlotRepository timeSlotRepository) {
+        return new ListSlotsUseCase(timeSlotRepository);
+    }
+
+    @Bean
+    GetAvailabilityUseCase getAvailabilityUseCase(TimeSlotRepository timeSlotRepository) {
+        return new GetAvailabilityUseCase(timeSlotRepository);
     }
 
     @Bean

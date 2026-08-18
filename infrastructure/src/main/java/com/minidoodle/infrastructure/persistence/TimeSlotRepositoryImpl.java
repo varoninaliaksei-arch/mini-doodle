@@ -4,9 +4,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import com.minidoodle.application.scheduling.TimeSlotCursor;
 import com.minidoodle.application.scheduling.TimeSlotRepository;
+import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
@@ -40,6 +43,22 @@ class TimeSlotRepositoryImpl implements TimeSlotRepository {
     @Override
     public List<TimeSlot> findByCalendarAndWindow(UUID calendarId, TimeInterval window) {
         return jpaRepository.findOverlapping(calendarId, window.start(), window.end())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<TimeSlot> findPage(UUID calendarId, TimeInterval window, Optional<SlotStatus> status,
+            Optional<TimeSlotCursor> after, int limit) {
+        return jpaRepository.findPage(
+                        calendarId,
+                        window.start(),
+                        window.end(),
+                        status.orElse(null),
+                        after.map(TimeSlotCursor::startsAt).orElse(null),
+                        after.map(TimeSlotCursor::id).orElse(null),
+                        PageRequest.of(0, limit))
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
