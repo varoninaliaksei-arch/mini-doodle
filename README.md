@@ -113,16 +113,25 @@ declares no dependencies, so pulling in Spring or Hibernate there is a
 compile failure, not a test that can be weakened or skipped. See
 [`docs/adr/0001-modular-monolith.md`](docs/adr/0001-modular-monolith.md).
 
-Three aggregate roots, kept independent rather than nested, so a slot
-operation never requires loading a calendar's full slot collection:
+Two persisted aggregate roots, kept independent rather than nested, so a
+slot operation never requires loading a calendar's full slot collection:
 
 - **`TimeSlot`** — `FREE` / `BLOCKED` / `BOOKED`, half-open UTC interval.
 - **`Meeting`** — created via `schedule(...)`, records `MeetingBooked`;
   `cancel()` records `MeetingCancelled`.
-- **`Calendar`** — thin identity (`id`, `ownerUserId`, `timezone`), no
-  behavior. Internal only: it does not appear in any REST path, request/
-  response body, or the OpenAPI schema. The client works with slots and
-  meetings; the calendar is derived from the owner.
+
+**`Calendar` is a domain concept, not (yet) a persisted class.** The brief
+requires it stay internal — "Calendar as the term in the task should be
+present only in the domain in the service" — so it never appears in a REST
+path, request/response body, or the OpenAPI schema regardless of how it's
+implemented. In this slice that requirement is satisfied by not building a
+`Calendar` class or table at all: `TimeSlot.calendarId` is used directly as
+the owner's `X-User-Id` (one calendar per user, calendar id == user id).
+The planned shape — a thin identity record (`id`, `ownerUserId`,
+`timezone`) with no behavior — is deferred along with it, including its
+per-user `timezone` field (times are UTC end-to-end today; there's nowhere
+to store a rendering-only timezone yet). See §7 for what building it for
+real would need.
 
 ## 5. Key design decisions
 
@@ -234,6 +243,10 @@ what was deliberately cut within the assignment's current scope:
   cancel) — currently only `POST /bookings` has it.
 - Audit history on slot/meeting state transitions, rather than only the
   current state.
+- A persisted `Calendar` (and `User`) table, rather than using
+  `X-User-Id` directly as `calendarId` (§4). Needed once a calendar has to
+  hold more than an identity — e.g. a per-user timezone for rendering, or
+  a single user owning more than one calendar.
 
 ## 8. Scaling path
 
