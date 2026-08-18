@@ -10,6 +10,7 @@ import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
 import com.minidoodle.application.scheduling.exception.NotOwnerException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.domain.scheduling.Meeting;
+import com.minidoodle.domain.scheduling.MeetingStatus;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
@@ -21,6 +22,16 @@ import com.minidoodle.domain.scheduling.TimeSlot;
  * owner reference, the same way slot mutations check TimeSlot.calendarId().
  * See README "Assumptions & trade-offs" for the uniform ownership-check
  * policy this is part of.
+ *
+ * <p>"At most one active meeting per slot" (the invariant TimeSlot.book()'s
+ * FREE-only precondition is meant to guarantee) has no database-level
+ * backstop the way slot overlap does (TECH-1's exclusion constraint) —
+ * {@code meetings.slot_id} carries no uniqueness constraint, since a slot
+ * legitimately accumulates multiple historical (cancelled) meetings over
+ * its lifetime. Before releasing the slot, this checks that no *other*
+ * {@code SCHEDULED} meeting exists for the same slot, refusing to cancel
+ * rather than silently freeing a slot a different active meeting still
+ * depends on.
  */
 public class CancelMeetingUseCase {
 
@@ -44,6 +55,14 @@ public class CancelMeetingUseCase {
 
         if (!meeting.details().organizerId().equals(callerId)) {
             throw new NotOwnerException("meeting", meetingId);
+        }
+
+        boolean anotherActiveMeetingOnSameSlot = meetingRepository.findBySlotId(meeting.slotId()).stream()
+                .anyMatch(other -> !other.id().equals(meeting.id()) && other.status() == MeetingStatus.SCHEDULED);
+        if (anotherActiveMeetingOnSameSlot) {
+            throw new IllegalStateException(
+                    "Slot %s has more than one active meeting; refusing to cancel %s"
+                            .formatted(meeting.slotId(), meetingId));
         }
 
         meeting.cancel();

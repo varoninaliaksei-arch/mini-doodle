@@ -43,33 +43,13 @@ class TimeIntervalTest {
     }
 
     @Test
-    void edgeTouchingIntervalsAreAdjacentButNotOverlapping() {
+    void edgeTouchingIntervalsDoNotOverlap() {
         // a = [T0, T1), b = [T1, T2) — a.end == b.start
         TimeInterval a = new TimeInterval(T0, T1);
         TimeInterval b = new TimeInterval(T1, T2);
 
         assertFalse(a.overlaps(b));
         assertFalse(b.overlaps(a));
-        assertTrue(a.isAdjacentOrOverlapping(b));
-        assertTrue(b.isAdjacentOrOverlapping(a));
-    }
-
-    @Test
-    void nonAdjacentDisjointIntervalsAreNotAdjacentOrOverlapping() {
-        TimeInterval a = new TimeInterval(T0, T1);
-        TimeInterval b = new TimeInterval(T2, T3);
-
-        assertFalse(a.isAdjacentOrOverlapping(b));
-        assertFalse(b.isAdjacentOrOverlapping(a));
-    }
-
-    @Test
-    void overlappingIntervalsAreAlsoAdjacentOrOverlapping() {
-        TimeInterval a = new TimeInterval(T0, T2);
-        TimeInterval b = new TimeInterval(T1, T3);
-
-        assertTrue(a.isAdjacentOrOverlapping(b));
-        assertTrue(b.isAdjacentOrOverlapping(a));
     }
 
     @Test

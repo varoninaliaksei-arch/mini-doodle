@@ -19,8 +19,4 @@ public record TimeInterval(Instant start, Instant end) {
     public boolean overlaps(TimeInterval other) {
         return start.isBefore(other.end) && other.start.isBefore(end);
     }
-
-    public boolean isAdjacentOrOverlapping(TimeInterval other) {
-        return !start.isAfter(other.end) && !other.start.isAfter(end);
-    }
 }

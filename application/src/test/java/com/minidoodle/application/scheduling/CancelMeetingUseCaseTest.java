@@ -81,4 +81,27 @@ class CancelMeetingUseCaseTest {
         assertEquals(MeetingStatus.SCHEDULED, meetingRepository.findById(meeting.id()).orElseThrow().status());
         assertEquals(SlotStatus.BOOKED, timeSlotRepository.findById(slotId).orElseThrow().status());
     }
+
+    /**
+     * Simulates a data-integrity anomaly the domain model doesn't prevent
+     * with a database constraint (unlike slot overlap, TECH-1): two
+     * SCHEDULED meetings recorded against the same slot. Cancelling either
+     * one must refuse rather than release a slot the other still depends on.
+     */
+    @Test
+    void rejectsCancelWhenAnotherMeetingIsActiveOnTheSameSlot() {
+        UUID slotId = UUID.randomUUID();
+        TimeSlot bookedSlot = new TimeSlot(slotId, UUID.randomUUID(), INTERVAL, SlotStatus.BOOKED, 0L);
+        timeSlotRepository.seed(bookedSlot);
+        Meeting first = new Meeting(UUID.randomUUID(), slotId, details, participants, MeetingStatus.SCHEDULED,
+                "key-1");
+        Meeting second = new Meeting(UUID.randomUUID(), slotId, details, participants, MeetingStatus.SCHEDULED,
+                "key-2");
+        meetingRepository.seed(first);
+        meetingRepository.seed(second);
+
+        assertThrows(IllegalStateException.class, () -> useCase.execute(first.id(), organizerId));
+        assertEquals(MeetingStatus.SCHEDULED, meetingRepository.findById(first.id()).orElseThrow().status());
+        assertEquals(SlotStatus.BOOKED, timeSlotRepository.findById(slotId).orElseThrow().status());
+    }
 }
