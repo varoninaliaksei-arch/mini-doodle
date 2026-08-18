@@ -27,3 +27,8 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+outbox:
+  publisher:
+    fixed-delay: 5000
+    batch-size: 50

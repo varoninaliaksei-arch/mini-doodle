@@ -1,5 +1,6 @@
 package com.minidoodle.infrastructure.persistence;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -28,6 +29,13 @@ public class OutboxEventJpaEntity {
     @Column(name = "payload", nullable = false, columnDefinition = "text")
     private String payload;
 
+    /** {@code insertable = false}: the column's DB {@code DEFAULT now()} is the source of truth. */
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "published_at")
+    private Instant publishedAt;
+
     protected OutboxEventJpaEntity() {
         // JPA
     }
@@ -53,5 +61,13 @@ public class OutboxEventJpaEntity {
 
     public String getPayload() {
         return payload;
+    }
+
+    public Instant getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void markPublished(Instant publishedAt) {
+        this.publishedAt = publishedAt;
     }
 }
