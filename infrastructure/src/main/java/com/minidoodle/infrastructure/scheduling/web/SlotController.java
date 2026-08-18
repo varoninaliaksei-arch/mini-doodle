@@ -18,12 +18,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.minidoodle.application.scheduling.BlockSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
 import com.minidoodle.application.scheduling.ListSlotsUseCase;
 import com.minidoodle.application.scheduling.SlotPage;
 import com.minidoodle.application.scheduling.TimeSlotCursor;
+import com.minidoodle.application.scheduling.UnblockSlotUseCase;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
@@ -39,16 +41,21 @@ class SlotController {
     private final CreateSlotsBulkUseCase createSlotsBulkUseCase;
     private final UpdateSlotUseCase updateSlotUseCase;
     private final DeleteSlotUseCase deleteSlotUseCase;
+    private final BlockSlotUseCase blockSlotUseCase;
+    private final UnblockSlotUseCase unblockSlotUseCase;
     private final ListSlotsUseCase listSlotsUseCase;
     private final SlotWebMapper mapper;
 
     SlotController(CreateSlotUseCase createSlotUseCase, CreateSlotsBulkUseCase createSlotsBulkUseCase,
             UpdateSlotUseCase updateSlotUseCase, DeleteSlotUseCase deleteSlotUseCase,
+            BlockSlotUseCase blockSlotUseCase, UnblockSlotUseCase unblockSlotUseCase,
             ListSlotsUseCase listSlotsUseCase, SlotWebMapper mapper) {
         this.createSlotUseCase = createSlotUseCase;
         this.createSlotsBulkUseCase = createSlotsBulkUseCase;
         this.updateSlotUseCase = updateSlotUseCase;
         this.deleteSlotUseCase = deleteSlotUseCase;
+        this.blockSlotUseCase = blockSlotUseCase;
+        this.unblockSlotUseCase = unblockSlotUseCase;
         this.listSlotsUseCase = listSlotsUseCase;
         this.mapper = mapper;
     }
@@ -78,6 +85,20 @@ class SlotController {
     @DeleteMapping("/{id}")
     ResponseEntity<Void> delete(@PathVariable UUID id, @RequestBody DeleteSlotRequest request) {
         deleteSlotUseCase.execute(id, request.version());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/block")
+    ResponseEntity<Void> block(@PathVariable UUID id, @RequestHeader("X-User-Id") UUID callerId,
+            @RequestBody SlotVersionRequest request) {
+        blockSlotUseCase.execute(id, callerId, request.version());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/unblock")
+    ResponseEntity<Void> unblock(@PathVariable UUID id, @RequestHeader("X-User-Id") UUID callerId,
+            @RequestBody SlotVersionRequest request) {
+        unblockSlotUseCase.execute(id, callerId, request.version());
         return ResponseEntity.noContent().build();
     }
 

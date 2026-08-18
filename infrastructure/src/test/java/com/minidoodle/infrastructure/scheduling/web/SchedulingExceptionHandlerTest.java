@@ -11,14 +11,17 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.BlockSlotUseCase;
 import com.minidoodle.application.scheduling.CancelMeetingUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
 import com.minidoodle.application.scheduling.ListSlotsUseCase;
+import com.minidoodle.application.scheduling.UnblockSlotUseCase;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 import com.minidoodle.application.scheduling.exception.BulkSlotLimitExceededException;
 import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
+import com.minidoodle.application.scheduling.exception.NotOwnerException;
 import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
@@ -46,6 +49,8 @@ class SchedulingExceptionHandlerTest {
     private final CreateSlotsBulkUseCase createSlotsBulkUseCase = mock(CreateSlotsBulkUseCase.class);
     private final UpdateSlotUseCase updateSlotUseCase = mock(UpdateSlotUseCase.class);
     private final DeleteSlotUseCase deleteSlotUseCase = mock(DeleteSlotUseCase.class);
+    private final BlockSlotUseCase blockSlotUseCase = mock(BlockSlotUseCase.class);
+    private final UnblockSlotUseCase unblockSlotUseCase = mock(UnblockSlotUseCase.class);
     private final ListSlotsUseCase listSlotsUseCase = mock(ListSlotsUseCase.class);
     private final CancelMeetingUseCase cancelMeetingUseCase = mock(CancelMeetingUseCase.class);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -59,7 +64,8 @@ class SchedulingExceptionHandlerTest {
     @BeforeEach
     void setUp() {
         SlotController slotController = new SlotController(createSlotUseCase, createSlotsBulkUseCase,
-                updateSlotUseCase, deleteSlotUseCase, listSlotsUseCase, new SlotWebMapper());
+                updateSlotUseCase, deleteSlotUseCase, blockSlotUseCase, unblockSlotUseCase, listSlotsUseCase,
+                new SlotWebMapper());
         MeetingController meetingController = new MeetingController(cancelMeetingUseCase, new MeetingWebMapper());
         mockMvc = MockMvcBuilders.standaloneSetup(slotController, meetingController)
                 .setControllerAdvice(new SchedulingExceptionHandler())
@@ -113,6 +119,19 @@ class SchedulingExceptionHandlerTest {
                         .content(objectMapper.writeValueAsString(new UpdateSlotRequest(null, null, 0L))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("/problems/slot-not-found"));
+    }
+
+    @Test
+    void notOwnerMapsTo403() throws Exception {
+        UUID callerId = UUID.randomUUID();
+        when(blockSlotUseCase.execute(any(), any(), anyLong())).thenThrow(new NotOwnerException("slot", SLOT_ID));
+
+        mockMvc.perform(post("/slots/{id}/block", SLOT_ID)
+                        .header("X-User-Id", callerId.toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new SlotVersionRequest(0L))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("/problems/not-owner"));
     }
 
     @Test

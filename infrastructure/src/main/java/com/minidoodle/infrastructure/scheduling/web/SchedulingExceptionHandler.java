@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.minidoodle.application.scheduling.exception.BulkSlotLimitExceededException;
 import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
+import com.minidoodle.application.scheduling.exception.NotOwnerException;
 import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
@@ -49,6 +50,11 @@ class SchedulingExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "/problems/meeting-not-found", "Meeting not found", e.getMessage());
     }
 
+    @ExceptionHandler(NotOwnerException.class)
+    ProblemDetail handleNotOwner(NotOwnerException e) {
+        return problem(HttpStatus.FORBIDDEN, "/problems/not-owner", "Not owner", e.getMessage());
+    }
+
     @ExceptionHandler(BulkSlotLimitExceededException.class)
     ProblemDetail handleBulkSlotLimitExceeded(BulkSlotLimitExceededException e) {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, "/problems/bulk-slot-limit-exceeded",
@@ -61,9 +67,11 @@ class SchedulingExceptionHandler {
     }
 
     /**
-     * Domain guard violations (e.g. TimeSlot.book() on a non-FREE slot)
-     * surface as plain IllegalStateException per the repo-wide convention —
-     * mapped generically here rather than with a dedicated exception type.
+     * Fallback for domain guard violations that a use case didn't
+     * pre-empt with a dedicated exception type (e.g. an already-BLOCKED
+     * slot rejecting a second block() call). Conditions with product-level
+     * meaning are translated to a specific exception by their use case
+     * before reaching here — see SlotBookedException, SlotConflictException.
      */
     @ExceptionHandler(IllegalStateException.class)
     ProblemDetail handleIllegalState(IllegalStateException e) {

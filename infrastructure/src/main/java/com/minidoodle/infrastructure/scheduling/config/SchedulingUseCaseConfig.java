@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 
 import tools.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.BlockSlotUseCase;
 import com.minidoodle.application.scheduling.CancelMeetingUseCase;
 import com.minidoodle.application.scheduling.CreateBookingUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
@@ -17,6 +18,7 @@ import com.minidoodle.application.scheduling.MeetingRepository;
 import com.minidoodle.application.scheduling.OutboxEventRepository;
 import com.minidoodle.application.scheduling.PublishOutboxEventUseCase;
 import com.minidoodle.application.scheduling.TimeSlotRepository;
+import com.minidoodle.application.scheduling.UnblockSlotUseCase;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 
 /**
@@ -44,6 +46,16 @@ class SchedulingUseCaseConfig {
     @Bean
     DeleteSlotUseCase deleteSlotUseCase(TimeSlotRepository timeSlotRepository) {
         return new DeleteSlotUseCase(timeSlotRepository);
+    }
+
+    @Bean
+    BlockSlotUseCase blockSlotUseCase(TimeSlotRepository timeSlotRepository) {
+        return new BlockSlotUseCase(timeSlotRepository);
+    }
+
+    @Bean
+    UnblockSlotUseCase unblockSlotUseCase(TimeSlotRepository timeSlotRepository) {
+        return new UnblockSlotUseCase(timeSlotRepository);
     }
 
     @Bean

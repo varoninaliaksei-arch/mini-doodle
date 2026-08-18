@@ -13,12 +13,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.BlockSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
 import com.minidoodle.application.scheduling.ListSlotsUseCase;
 import com.minidoodle.application.scheduling.SlotPage;
 import com.minidoodle.application.scheduling.TimeSlotCursor;
+import com.minidoodle.application.scheduling.UnblockSlotUseCase;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
@@ -45,6 +47,8 @@ class SlotControllerTest {
     private final CreateSlotsBulkUseCase createSlotsBulkUseCase = mock(CreateSlotsBulkUseCase.class);
     private final UpdateSlotUseCase updateSlotUseCase = mock(UpdateSlotUseCase.class);
     private final DeleteSlotUseCase deleteSlotUseCase = mock(DeleteSlotUseCase.class);
+    private final BlockSlotUseCase blockSlotUseCase = mock(BlockSlotUseCase.class);
+    private final UnblockSlotUseCase unblockSlotUseCase = mock(UnblockSlotUseCase.class);
     private final ListSlotsUseCase listSlotsUseCase = mock(ListSlotsUseCase.class);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -56,7 +60,7 @@ class SlotControllerTest {
     @BeforeEach
     void setUp() {
         SlotController controller = new SlotController(createSlotUseCase, createSlotsBulkUseCase, updateSlotUseCase,
-                deleteSlotUseCase, listSlotsUseCase, new SlotWebMapper());
+                deleteSlotUseCase, blockSlotUseCase, unblockSlotUseCase, listSlotsUseCase, new SlotWebMapper());
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -125,6 +129,34 @@ class SlotControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(deleteSlotUseCase).execute(slotId, 2L);
+    }
+
+    @Test
+    void blockSlotReturns204() throws Exception {
+        UUID slotId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        mockMvc.perform(post("/slots/{id}/block", slotId)
+                        .header("X-User-Id", ownerId.toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new SlotVersionRequest(0L))))
+                .andExpect(status().isNoContent());
+
+        verify(blockSlotUseCase).execute(slotId, ownerId, 0L);
+    }
+
+    @Test
+    void unblockSlotReturns204() throws Exception {
+        UUID slotId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        mockMvc.perform(post("/slots/{id}/unblock", slotId)
+                        .header("X-User-Id", ownerId.toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new SlotVersionRequest(1L))))
+                .andExpect(status().isNoContent());
+
+        verify(unblockSlotUseCase).execute(slotId, ownerId, 1L);
     }
 
     @Test
