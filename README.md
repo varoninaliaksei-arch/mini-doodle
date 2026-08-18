@@ -351,3 +351,13 @@ Grafana's default 1h window picks the traffic up on the next 15s scrape.
 
   Kept out of `./gradlew test`/`check`/`build` (Docker-dependent, slower)
   and run explicitly via `integrationTest`.
+
+**Note on Jackson 2 vs. 3.** Production code (`application`,
+`infrastructure`) uses Jackson 3 exclusively (`tools.jackson.databind`,
+matching Spring Boot 4.1's own default) — it's the only Jackson coordinate
+declared anywhere in `gradle/libs.versions.toml`. A few tests
+(`BookingRaceIT` and some `infrastructure` MockMvc tests) import
+`com.fasterxml.jackson.databind.ObjectMapper` (Jackson 2) instead; that's
+Spring's test infrastructure pulling it in transitively (verified via
+`./gradlew :infrastructure:dependencies --configuration
+testRuntimeClasspath`), not a second deliberate JSON library choice.
