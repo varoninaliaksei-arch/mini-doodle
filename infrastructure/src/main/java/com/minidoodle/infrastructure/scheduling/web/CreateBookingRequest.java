@@ -3,7 +3,15 @@ package com.minidoodle.infrastructure.scheduling.web;
 import java.util.List;
 import java.util.UUID;
 
-/** organizerId is not a field here — it comes from X-User-Id, per TECH-6. */
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * organizerId is deliberately absent — it comes from the X-User-Id header,
+ * not the body (write on your own behalf only, per TECH-6). Likewise the
+ * idempotency key travels as the optional Idempotency-Key header, not here.
+ */
+@Schema(description = "organizerId comes from the X-User-Id header, not this body. An optional "
+        + "Idempotency-Key header controls retry-safety.")
 public record CreateBookingRequest(UUID slotId, String title, String description,
         List<ParticipantRequest> participants) {
 }
