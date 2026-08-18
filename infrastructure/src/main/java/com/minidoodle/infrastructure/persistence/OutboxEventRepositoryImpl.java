@@ -28,7 +28,7 @@ class OutboxEventRepositoryImpl implements OutboxEventRepository {
     public List<OutboxEvent> findUnpublished(int limit) {
         return jpaRepository.findUnpublishedForUpdateSkipLocked(limit).stream()
                 .map(entity -> new OutboxEvent(entity.getId(), entity.getAggregateId(), entity.getType(),
-                        entity.getPayload()))
+                        entity.getPayload(), entity.getCreatedAt()))
                 .toList();
     }
 

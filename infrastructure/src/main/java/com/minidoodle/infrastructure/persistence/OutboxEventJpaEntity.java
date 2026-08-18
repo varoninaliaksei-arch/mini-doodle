@@ -63,6 +63,10 @@ public class OutboxEventJpaEntity {
         return payload;
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public Instant getPublishedAt() {
         return publishedAt;
     }

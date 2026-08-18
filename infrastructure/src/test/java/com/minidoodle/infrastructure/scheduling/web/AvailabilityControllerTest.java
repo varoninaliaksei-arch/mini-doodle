@@ -9,11 +9,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import com.minidoodle.application.scheduling.GetAvailabilityUseCase;
 import com.minidoodle.domain.scheduling.Coverage;
 import com.minidoodle.domain.scheduling.CoverageInterval;
 import com.minidoodle.domain.scheduling.TimeInterval;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -26,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AvailabilityControllerTest {
 
     private final GetAvailabilityUseCase getAvailabilityUseCase = mock(GetAvailabilityUseCase.class);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     private MockMvc mockMvc;
 
@@ -35,7 +39,7 @@ class AvailabilityControllerTest {
     @BeforeEach
     void setUp() {
         AvailabilityController controller = new AvailabilityController(getAvailabilityUseCase,
-                new AvailabilityWebMapper());
+                new AvailabilityWebMapper(), meterRegistry);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -54,5 +58,7 @@ class AvailabilityControllerTest {
                 .andExpect(jsonPath("$[0].coverage").value("FREE"));
 
         verify(getAvailabilityUseCase).execute(eq(ownerId), any());
+        assertEquals(1.0, meterRegistry.get("freebusy.query.window.days").summary().count());
+        assertEquals(1.0, meterRegistry.get("freebusy.query.window.days").summary().totalAmount());
     }
 }

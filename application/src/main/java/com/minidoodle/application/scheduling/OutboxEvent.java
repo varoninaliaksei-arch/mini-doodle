@@ -1,14 +1,17 @@
 package com.minidoodle.application.scheduling;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
- * A row to append to {@code outbox_events} (INFRA-3). Not a domain concept —
- * {@code created_at}/{@code published_at} are populated by the database and
- * the outbox publisher respectively, neither of which exists yet.
+ * A row appended to / read back from {@code outbox_events} (INFRA-3). Not a
+ * domain concept. {@code createdAt} is null for an event not yet persisted
+ * (the DB's {@code DEFAULT now()} is the source of truth, per §8) and
+ * populated only when read back via {@link OutboxEventRepository#findUnpublished},
+ * where it drives the {@code outbox.lag} gauge (SCOPE-3).
  */
-public record OutboxEvent(UUID id, UUID aggregateId, String type, String payload) {
+public record OutboxEvent(UUID id, UUID aggregateId, String type, String payload, Instant createdAt) {
 
     public OutboxEvent {
         Objects.requireNonNull(id, "id must not be null");

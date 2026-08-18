@@ -22,6 +22,6 @@ class OutboxEventFactory {
 
     OutboxEvent from(MeetingEvent event) {
         String payload = objectMapper.writeValueAsString(event);
-        return new OutboxEvent(UUID.randomUUID(), event.meetingId(), event.getClass().getSimpleName(), payload);
+        return new OutboxEvent(UUID.randomUUID(), event.meetingId(), event.getClass().getSimpleName(), payload, null);
     }
 }
