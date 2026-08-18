@@ -3,9 +3,15 @@ package com.minidoodle.infrastructure.scheduling.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.minidoodle.application.scheduling.CancelMeetingUseCase;
+import com.minidoodle.application.scheduling.CreateBookingUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
+import com.minidoodle.application.scheduling.MeetingRepository;
+import com.minidoodle.application.scheduling.OutboxEventRepository;
 import com.minidoodle.application.scheduling.TimeSlotRepository;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 
@@ -34,5 +40,19 @@ class SchedulingUseCaseConfig {
     @Bean
     DeleteSlotUseCase deleteSlotUseCase(TimeSlotRepository timeSlotRepository) {
         return new DeleteSlotUseCase(timeSlotRepository);
+    }
+
+    @Bean
+    CreateBookingUseCase createBookingUseCase(TimeSlotRepository timeSlotRepository,
+            MeetingRepository meetingRepository, OutboxEventRepository outboxEventRepository,
+            ObjectMapper objectMapper) {
+        return new CreateBookingUseCase(timeSlotRepository, meetingRepository, outboxEventRepository, objectMapper);
+    }
+
+    @Bean
+    CancelMeetingUseCase cancelMeetingUseCase(MeetingRepository meetingRepository,
+            TimeSlotRepository timeSlotRepository, OutboxEventRepository outboxEventRepository,
+            ObjectMapper objectMapper) {
+        return new CancelMeetingUseCase(meetingRepository, timeSlotRepository, outboxEventRepository, objectMapper);
     }
 }
