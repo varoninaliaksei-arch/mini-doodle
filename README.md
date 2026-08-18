@@ -144,7 +144,7 @@ mapped to a clean `409` — the constraint remains the actual source of
 truth, this is only exception translation. `@Version` is a separate
 mechanism on top of it, catching stale concurrent updates to the same row
 (`ObjectOptimisticLockingFailureException`), mapped to `409` the same way.
-Verified directly by `BookingRaceIT` (§9). See
+Verified directly by `BookingRaceIT` (§10). See
 [`docs/adr/0002-postgres-exclusion-constraint.md`](docs/adr/0002-postgres-exclusion-constraint.md).
 
 **Consistency is strict by construction, not as a CAP trade-off.** With a
@@ -244,7 +244,61 @@ Sharding is deferred deliberately: bookings are rare writes, and a primary
 Postgres comfortably handles thousands of write TPS at this domain's
 shape — sharding solves a problem this service doesn't have yet.
 
-## 9. Testing
+## 9. Observability
+
+```bash
+docker compose --profile observability up -d
+```
+
+Adds Prometheus (`localhost:9090`) and Grafana (`localhost:3000`, login
+`admin` / `admin` — dev-only credentials, not meant to be exposed) on top of
+the base `app` + `postgres` profile (INFRA-1 stays intact: plain
+`docker compose up`, no `--profile`, is still exactly two containers).
+Prometheus scrapes `app:8080/actuator/prometheus` every 15s
+(`observability/prometheus/prometheus.yml`); Grafana's datasource and
+dashboard are wired entirely through provisioning files under
+`observability/grafana/` — nothing is clicked together in the UI, so the
+dashboard is there on first boot, not after a manual import step.
+
+Open `http://localhost:3000/d/mini-doodle-business-metrics` for the
+**mini-doodle - business metrics** dashboard, one panel per SCOPE-3
+hand-written metric (Micrometer/Spring Boot give the technical metrics —
+JVM, HTTP, datasource pool — for free; nobody reviewing this is going to
+browse a bare `/actuator/prometheus`, so these four are the ones worth a
+graph):
+
+- **Booking attempts (rate by result)** — `booking_attempts_total{result}`,
+  split into `success` / `conflict` / `not_found`. A `conflict`/`not_found`
+  spike that isn't matched by a `success` spike is the signal that
+  something's wrong upstream of the database (stale slot ids, clients
+  hammering the same slot) rather than noise the `409`/`404` already
+  absorbed.
+- **Booking duration (p50 / p95)** — `booking_duration_seconds_bucket` via
+  `histogram_quantile()`. p95 pulling away from p50 is the early warning
+  for lock contention on the exclusion constraint, before it turns into a
+  user-visible timeout.
+- **Free/busy query window (days requested)** — a heatmap over
+  `freebusy_query_window_days_bucket`. Recorded *before* the 90-day cap
+  (TECH-7) is enforced, so rejected oversized windows still show up — a
+  cluster pressing against the cap is the signal to reconsider the limit,
+  not just a `400` buried in the logs.
+- **Outbox lag** — `outbox_lag`, seconds since the oldest unpublished
+  `outbox_events` row was created. Near-zero and flat is healthy; a
+  sustained climb means `OutboxPublisher` has stopped draining while writes
+  keep landing — the primary signal that the outbox side of INFRA-3 is
+  stuck.
+
+Verify manually after starting the profile:
+
+```bash
+curl -s http://localhost:9090/api/v1/targets   # target for mini-doodle-app should be "health": "up"
+```
+
+then fire a few requests from §3 (a booking, a rebooking of the same slot
+for a `conflict`, an availability query) and refresh the dashboard —
+Grafana's default 1h window picks the traffic up on the next 15s scrape.
+
+## 10. Testing
 
 ```bash
 ./gradlew test              # domain + application unit tests, no Docker

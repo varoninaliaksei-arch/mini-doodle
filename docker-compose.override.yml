@@ -1,0 +1,31 @@
+# observability profile (INFRA-6, SCOPE-4): Prometheus + Grafana, wired
+# entirely through provisioning files under ./observability - no manual
+# clicking in either UI. Not part of the base profile (INFRA-1): `docker
+# compose up` with no --profile stays exactly app + postgres.
+#
+# Usage: docker compose --profile observability up
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["observability"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["observability"]
+    environment:
+      # Dev-only credentials - the observability profile is not exposed
+      # outside local/demo use, see README.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus

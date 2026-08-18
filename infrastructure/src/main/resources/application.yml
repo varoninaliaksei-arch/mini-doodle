@@ -21,6 +21,16 @@ management:
     web:
       exposure:
         include: health, info, prometheus
+  metrics:
+    distribution:
+      # Histogram buckets (not just count/sum/max) for both, so Grafana can
+      # do server-side histogram_quantile()/heatmaps (§11) instead of only
+      # a mean line - the whole point of freebusy.query.window.days is
+      # seeing the shape of the distribution, including rejected oversized
+      # windows.
+      percentiles-histogram:
+        booking.duration: true
+        freebusy.query.window.days: true
 
 springdoc:
   api-docs:
