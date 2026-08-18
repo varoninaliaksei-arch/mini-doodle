@@ -13,11 +13,12 @@ import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
- * POST /slots/{id}/unblock: BLOCKED -> FREE (DOM-1), owner-only. Mirrors
+ * POST /slots/{id}/unblock: BLOCKED -> FREE, owner-only. Mirrors
  * BlockSlotUseCase's shape; a BOOKED slot gets the same "cancel the meeting
- * first" treatment even though unblock() isn't the transition DOM-2 talks
- * about, for the same reason: the owner-facing message should name the
- * actual blocker (an active meeting) rather than a generic state error.
+ * first" treatment even though unblock() isn't the BOOKED-slot-release
+ * transition itself, for the same reason: the owner-facing message should
+ * name the actual blocker (an active meeting) rather than a generic state
+ * error.
  */
 public class UnblockSlotUseCase {
 

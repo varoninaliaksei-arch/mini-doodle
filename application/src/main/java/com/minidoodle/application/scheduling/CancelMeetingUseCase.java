@@ -14,24 +14,23 @@ import com.minidoodle.domain.scheduling.MeetingStatus;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
- * POST /meetings/{id}/cancel: meeting.cancel() then slot.release() — DOM-2's
+ * POST /meetings/{id}/cancel: meeting.cancel() then slot.release() — the
  * only legal caller of {@link TimeSlot#release()}. Owner-only, checked
- * against the Meeting's own recorded owner (organizerId — the caller who
- * created the booking), not the slot's calendarId; cancelling a meeting is
- * an action on the Meeting aggregate, so it checks that aggregate's own
- * owner reference, the same way slot mutations check TimeSlot.calendarId().
- * See README "Assumptions & trade-offs" for the uniform ownership-check
- * policy this is part of.
+ * against the Meeting's own organizerId (the caller who created the
+ * booking), not the slot's calendarId — cancelling is an action on the
+ * Meeting aggregate, so it checks that aggregate's own owner reference,
+ * the same way slot mutations check TimeSlot.calendarId(). See README
+ * "Assumptions & trade-offs" for the uniform ownership-check policy this
+ * is part of.
  *
- * <p>"At most one active meeting per slot" (the invariant TimeSlot.book()'s
- * FREE-only precondition is meant to guarantee) has no database-level
- * backstop the way slot overlap does (TECH-1's exclusion constraint) —
- * {@code meetings.slot_id} carries no uniqueness constraint, since a slot
- * legitimately accumulates multiple historical (cancelled) meetings over
- * its lifetime. Before releasing the slot, this checks that no *other*
- * {@code SCHEDULED} meeting exists for the same slot, refusing to cancel
- * rather than silently freeing a slot a different active meeting still
- * depends on.
+ * <p>"At most one active meeting per slot" (what TimeSlot.book()'s
+ * FREE-only precondition is meant to guarantee) has no database backstop
+ * the way slot overlap does — {@code meetings.slot_id} has no uniqueness
+ * constraint, since a slot legitimately accumulates multiple historical
+ * (cancelled) meetings over its lifetime. Before releasing the slot, this
+ * checks that no *other* {@code SCHEDULED} meeting exists for it, refusing
+ * to cancel rather than silently freeing a slot another active meeting
+ * still depends on.
  */
 public class CancelMeetingUseCase {
 

@@ -5,10 +5,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Decoded keyset-pagination position for GET /slots (02-ARCHITECTURE.md
- * §4). The Base64 wire format is an infrastructure-only concern (encode/
- * decode happens in infrastructure/.../web) — this type only ever carries
- * the already-decoded {@code (starts_at, id)} pair.
+ * Decoded keyset-pagination position for GET /slots. The Base64 wire
+ * format is an infrastructure-only concern (encode/decode happens in
+ * infrastructure/.../web) — this type only ever carries the
+ * already-decoded {@code (starts_at, id)} pair.
  */
 public record TimeSlotCursor(Instant startsAt, UUID id) {
 

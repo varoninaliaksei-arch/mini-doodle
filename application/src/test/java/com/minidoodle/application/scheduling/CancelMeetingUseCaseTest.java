@@ -84,9 +84,10 @@ class CancelMeetingUseCaseTest {
 
     /**
      * Simulates a data-integrity anomaly the domain model doesn't prevent
-     * with a database constraint (unlike slot overlap, TECH-1): two
-     * SCHEDULED meetings recorded against the same slot. Cancelling either
-     * one must refuse rather than release a slot the other still depends on.
+     * with a database constraint (unlike slot overlap, which the exclusion
+     * constraint rejects): two SCHEDULED meetings recorded against the same
+     * slot. Cancelling either one must refuse rather than release a slot the
+     * other still depends on.
      */
     @Test
     void rejectsCancelWhenAnotherMeetingIsActiveOnTheSameSlot() {

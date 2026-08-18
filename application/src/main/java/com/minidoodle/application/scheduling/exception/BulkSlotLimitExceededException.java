@@ -1,7 +1,7 @@
 package com.minidoodle.application.scheduling.exception;
 
 /**
- * DOM-3: bulk slot creation is capped at 500 slots per call. Maps to
+ * Bulk slot creation is capped at 500 slots per call. Maps to
  * {@code 422} at the REST layer — the request is rejected outright, never
  * silently truncated.
  */

@@ -2,9 +2,7 @@ package com.minidoodle.domain.scheduling;
 
 import java.time.Instant;
 
-/**
- * Half-open interval [start, end) in UTC.
- */
+/** Half-open interval [start, end) in UTC. */
 public record TimeInterval(Instant start, Instant end) {
 
     public TimeInterval {

@@ -17,9 +17,9 @@ import com.minidoodle.domain.scheduling.Participant;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
- * POST /bookings orchestration: idempotency-key short-circuit (SCOPE-1),
- * slot.book() + Meeting.schedule() as one transaction, outbox write
- * (INFRA-3). The outbox publisher itself is a separate, later task.
+ * POST /bookings orchestration: idempotency-key short-circuit,
+ * slot.book() + Meeting.schedule() as one transaction, outbox write.
+ * The outbox publisher itself is a separate, later task.
  */
 public class CreateBookingUseCase {
 
@@ -53,11 +53,10 @@ public class CreateBookingUseCase {
             slot.book();
         } catch (IllegalStateException e) {
             // Same condition as the race below (someone already has this
-            // slot) - just caught sequentially, via the loaded status,
-            // instead of at save() via the exclusion constraint/optimistic
-            // lock. Both are "this slot is already spoken for" and must
-            // surface as the same exception so callers/metrics don't have
-            // to distinguish a distinction that isn't theirs to care about.
+            // slot), just caught earlier via the loaded status rather than
+            // at save() via the exclusion constraint/optimistic lock. Both
+            // must surface as the same exception so callers/metrics don't
+            // have to distinguish a cause that isn't theirs to care about.
             throw new SlotConflictException(slotId, e);
         }
         Meeting meeting = Meeting.schedule(slotId, details, participants, idempotencyKey);
@@ -65,18 +64,17 @@ public class CreateBookingUseCase {
         try {
             timeSlotRepository.save(slot);
         } catch (ObjectOptimisticLockingFailureException e) {
-            // Lost the race for this slot. Once JPA raises this, the
-            // current transaction is marked rollback-only regardless of
-            // whether this catch block handles it - there is no reading
-            // the winner's row from inside a poisoned transaction. A clean
-            // 409 is the correct, standard contract here (matching how
-            // Idempotency-Key races are documented elsewhere, e.g.
-            // Stripe's API): the caller retries with the same key and gets
-            // the winner's meeting back through the ordinary short-circuit
-            // above, in a fresh transaction. Same exception type as the
-            // exclusion-constraint conflict (TECH-1) - both are "this slot
-            // is already spoken for", just caught at different layers -
-            // so clients get the same /problems/slot-conflict either way.
+            // Lost the race for this slot. Once JPA raises this, the current
+            // transaction is rollback-only regardless of whether this catch
+            // block handles it — there's no reading the winner's row from
+            // inside a poisoned transaction. A clean 409 is the standard
+            // contract here (cf. Stripe's Idempotency-Key semantics): the
+            // caller retries with the same key and gets the winner's
+            // meeting back via the short-circuit above, in a fresh
+            // transaction. Same exception type as the exclusion-constraint
+            // conflict — both mean "this slot is already spoken for", just
+            // caught at different layers, so clients see the same
+            // /problems/slot-conflict either way.
             throw new SlotConflictException(slotId, e);
         }
 

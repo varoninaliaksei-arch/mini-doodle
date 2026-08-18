@@ -33,8 +33,8 @@ class AvailabilityController {
     @GetMapping("/availability")
     List<CoverageIntervalResponse> get(@RequestParam UUID ownerId, @RequestParam Instant from,
             @RequestParam Instant to) {
-        // Recorded before WindowPolicy (TECH-7) is enforced inside the use case, so rejected
-        // oversized windows still show up in the distribution (§11).
+        // Recorded before WindowPolicy is enforced inside the use case, so rejected
+        // oversized windows still show up in the metric's distribution.
         windowDaysSummary.record(ChronoUnit.DAYS.between(from, to));
         List<CoverageInterval> coverage = getAvailabilityUseCase.execute(ownerId, new TimeInterval(from, to));
         return mapper.toResponseList(coverage);

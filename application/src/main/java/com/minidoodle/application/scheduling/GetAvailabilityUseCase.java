@@ -8,7 +8,7 @@ import com.minidoodle.domain.scheduling.CoverageInterval;
 import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
-/** GET /availability: merged free/busy/unavailable view, TECH-7 window cap enforced. */
+/** GET /availability: merged free/busy/unavailable view, shared window cap enforced. */
 public class GetAvailabilityUseCase {
 
     private final TimeSlotRepository timeSlotRepository;

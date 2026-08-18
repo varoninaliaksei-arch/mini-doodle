@@ -8,7 +8,7 @@ import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
-/** GET /slots: keyset-paginated slot listing, TECH-7 window cap enforced. */
+/** GET /slots: keyset-paginated slot listing, shared window cap enforced. */
 public class ListSlotsUseCase {
 
     private final TimeSlotRepository timeSlotRepository;

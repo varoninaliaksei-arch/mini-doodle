@@ -8,8 +8,8 @@ import java.util.UUID;
 import com.minidoodle.application.scheduling.TimeSlotCursor;
 
 /**
- * §4: {@code cursor = Base64(starts_at + id)}. Encode/decode lives in
- * infrastructure (rule 6) — application only ever sees the decoded
+ * {@code cursor = Base64(starts_at + id)}. Encode/decode lives in
+ * infrastructure — application only ever sees the decoded
  * {@link TimeSlotCursor}.
  */
 final class SlotCursorCodec {

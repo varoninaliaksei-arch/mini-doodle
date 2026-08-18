@@ -10,8 +10,8 @@ public interface OutboxEventRepository {
     /**
      * Unpublished rows, oldest first, capped at {@code limit}. Implementors
      * must use {@code FOR UPDATE SKIP LOCKED} so concurrent
-     * {@code OutboxPublisher} instances (scale profile, INFRA-7) don't claim
-     * the same batch.
+     * {@code OutboxPublisher} instances (scale profile, running more than
+     * one replica) don't claim the same batch.
      */
     List<OutboxEvent> findUnpublished(int limit);
 

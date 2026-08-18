@@ -11,14 +11,14 @@ interface OutboxEventJpaRepository extends JpaRepository<OutboxEventJpaEntity, U
 
     /**
      * {@code FOR UPDATE SKIP LOCKED} (native — JPQL has no equivalent) so
-     * concurrent {@code OutboxPublisher} instances (scale profile,
-     * INFRA-7) never wait on each other's in-flight batch: a row already
-     * locked by another instance is simply skipped, not queued behind. The
-     * lock is held only for this query's own short-lived transaction
-     * (Spring Data wraps every repository method call in one by default),
-     * so this is a best-effort exclusion rather than a hold across the
-     * whole batch's processing — the crash-window duplicate documented in
-     * INFRA-3 remains the accepted at-least-once trade-off.
+     * concurrent {@code OutboxPublisher} instances (scale profile, running
+     * more than one replica) never wait on each other's in-flight batch: a
+     * row already locked by another instance is simply skipped, not queued
+     * behind. The lock is held only for this query's own short-lived
+     * transaction (Spring Data wraps every repository method call in one
+     * by default), so this is a best-effort exclusion rather than a hold
+     * across the whole batch's processing — the crash-window duplicate
+     * this creates remains the accepted at-least-once trade-off.
      */
     @Query(value = """
             select * from outbox_events

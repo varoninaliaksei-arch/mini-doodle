@@ -5,11 +5,11 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * A row appended to / read back from {@code outbox_events} (INFRA-3). Not a
+ * A row appended to / read back from {@code outbox_events}. Not a
  * domain concept. {@code createdAt} is null for an event not yet persisted
- * (the DB's {@code DEFAULT now()} is the source of truth, per §8) and
+ * (the DB's {@code DEFAULT now()} is the source of truth) and
  * populated only when read back via {@link OutboxEventRepository#findUnpublished},
- * where it drives the {@code outbox.lag} gauge (SCOPE-3).
+ * where it drives the {@code outbox.lag} gauge.
  */
 public record OutboxEvent(UUID id, UUID aggregateId, String type, String payload, Instant createdAt) {
 

@@ -39,7 +39,7 @@ class TimeSlotTest {
 
     @Test
     void block_fromBooked_throws_forbiddenDirectTransition() {
-        // DOM-1: BOOKED -> BLOCKED is forbidden directly.
+        // BOOKED -> BLOCKED is forbidden directly.
         TimeSlot slot = slotWith(SlotStatus.BOOKED);
 
         assertThrows(IllegalStateException.class, slot::block);

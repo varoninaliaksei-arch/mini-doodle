@@ -8,9 +8,8 @@ import com.minidoodle.application.scheduling.EventSink;
 import com.minidoodle.application.scheduling.OutboxEvent;
 
 /**
- * Placeholder publish step (§8): logs the event at INFO, structured enough
- * to grep. Swapping in a {@code KafkaTemplate} later touches only this
- * class.
+ * Placeholder publish step: logs the event at INFO, structured enough to
+ * grep. Swapping in a {@code KafkaTemplate} later touches only this class.
  */
 @Component
 class LoggingEventSink implements EventSink {

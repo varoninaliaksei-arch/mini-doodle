@@ -5,7 +5,7 @@ import java.util.UUID;
 import com.minidoodle.domain.scheduling.TimeInterval;
 
 /**
- * TECH-1: the exclusion constraint rejected an overlapping slot. Maps to
+ * The exclusion constraint rejected an overlapping slot. Maps to
  * {@code 409} at the REST layer.
  */
 public class SlotConflictException extends RuntimeException {
@@ -14,7 +14,7 @@ public class SlotConflictException extends RuntimeException {
         super("Slot %s overlaps an existing slot in calendar %s".formatted(interval, calendarId), cause);
     }
 
-    /** Lost a concurrent race to book/save the same slot (TECH-1, SCOPE-2). */
+    /** Lost a concurrent race to book/save the same slot. */
     public SlotConflictException(UUID slotId, Throwable cause) {
         super("Slot %s was booked concurrently".formatted(slotId), cause);
     }

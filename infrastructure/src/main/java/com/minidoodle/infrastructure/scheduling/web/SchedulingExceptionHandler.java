@@ -19,7 +19,7 @@ import com.minidoodle.application.scheduling.exception.WindowTooLargeException;
 /**
  * RFC 7807 mapping for the scheduling API. Each case gets its own "type"
  * URI (even the two 404s, for consistency) so a client can programmatically
- * distinguish the three different 409 causes (rule 5).
+ * distinguish the three different 409 causes.
  */
 @RestControllerAdvice
 class SchedulingExceptionHandler {

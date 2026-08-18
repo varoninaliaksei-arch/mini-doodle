@@ -3,13 +3,13 @@ package com.minidoodle.application.scheduling;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Publish-then-mark for exactly one {@code outbox_events} row (§8,
- * INFRA-3). Called once per event from {@code OutboxPublisher}'s batch loop
- * in infrastructure — a separate Spring bean, so each call runs in its own
+ * Publish-then-mark for exactly one {@code outbox_events} row. Called
+ * once per event from {@code OutboxPublisher}'s batch loop in
+ * infrastructure — a separate Spring bean, so each call runs in its own
  * transaction (self-invocation from within the loop's own class would
- * bypass the @Transactional proxy). That per-call transaction boundary is
- * what keeps a failure partway through a batch from rolling back rows this
- * method already committed earlier in the same run.
+ * bypass the @Transactional proxy). That per-call boundary keeps a
+ * failure partway through a batch from rolling back rows already
+ * committed earlier in the same run.
  */
 public class PublishOutboxEventUseCase {
 

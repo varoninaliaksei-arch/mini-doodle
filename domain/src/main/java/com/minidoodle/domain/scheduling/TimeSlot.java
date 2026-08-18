@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Aggregate root. Status transitions are guarded here (DOM-1); invalid
+ * Aggregate root. Status transitions are guarded here; invalid
  * transitions throw {@link IllegalStateException}, which the application
  * layer maps to {@code 409}.
  */
@@ -46,7 +46,7 @@ public final class TimeSlot {
     /**
      * Contract: call only from the meeting-cancellation use case. Never call
      * this from slot delete/modify — a booked slot must be released through
-     * cancelling its meeting, per DOM-2.
+     * cancelling its meeting, not by deleting or modifying the slot directly.
      */
     public void release() {
         requireStatus(SlotStatus.BOOKED, "release");

@@ -20,7 +20,7 @@ public interface TimeSlotRepository {
 
     /**
      * Keyset page ordered by {@code (starts_at, id)} — matches the B-tree
-     * index backing GET /slots pagination (02-ARCHITECTURE.md §4, §10).
+     * index backing GET /slots pagination.
      * Returns at most {@code limit} slots strictly after {@code after}
      * (or from the start of the window if {@code after} is empty).
      */

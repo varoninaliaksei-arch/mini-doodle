@@ -21,7 +21,7 @@ import com.minidoodle.domain.scheduling.Meeting;
 import com.minidoodle.domain.scheduling.MeetingDetails;
 import com.minidoodle.domain.scheduling.Participant;
 
-/** Business metrics here (§11, SCOPE-3): booking.attempts and booking.duration wrap the use case call, untouched itself. */
+/** Business metrics here: booking.attempts and booking.duration wrap the use case call, untouched itself. */
 @RestController
 class BookingController {
 

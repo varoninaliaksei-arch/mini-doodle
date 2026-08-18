@@ -13,7 +13,7 @@ import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
- * POST /slots/{id}/block: FREE -> BLOCKED (DOM-1), owner-only. A BOOKED slot
+ * POST /slots/{id}/block: FREE -> BLOCKED, owner-only. A BOOKED slot
  * can't go directly to BLOCKED (the domain transition table forbids it), so
  * that case gets the same "cancel the meeting first" treatment as
  * DeleteSlotUseCase/UpdateSlotUseCase rather than a generic state-guard

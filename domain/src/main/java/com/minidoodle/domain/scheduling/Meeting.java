@@ -65,7 +65,7 @@ public final class Meeting {
     }
 
     /**
-     * SCOPE-1: Idempotency-Key is an optional HTTP header, so {@code null}
+     * Idempotency-Key is an optional HTTP header, so {@code null}
      * is a valid value here (no key supplied). A supplied-but-blank string
      * is rejected as a caller error.
      */

@@ -19,7 +19,7 @@ import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
  * PATCH /slots/{id}: both fields optional, merged with the slot's current
- * interval before validation (02-ARCHITECTURE.md §4). Owner-only, per the
+ * interval before validation. Owner-only, per the
  * uniform ownership-check policy (see README "Assumptions & trade-offs").
  */
 public class UpdateSlotUseCase {

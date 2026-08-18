@@ -15,7 +15,7 @@ import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
- * DOM-3: range + slotDuration -> N back-to-back slots, all-or-nothing in one
+ * Range + slotDuration -> N back-to-back slots, all-or-nothing in one
  * transaction. A trailing remainder that doesn't fill a whole slot is
  * discarded, never rounded up.
  */

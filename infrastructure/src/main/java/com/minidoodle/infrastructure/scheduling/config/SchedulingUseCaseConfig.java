@@ -22,8 +22,8 @@ import com.minidoodle.application.scheduling.UnblockSlotUseCase;
 import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 
 /**
- * Application-layer use cases stay plain (unannotated) classes per ARCH-3 —
- * this is the one place infrastructure wires them as beans.
+ * Application-layer use cases stay plain (unannotated) classes — this is
+ * the one place infrastructure wires them as beans.
  */
 @Configuration
 class SchedulingUseCaseConfig {

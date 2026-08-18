@@ -6,7 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * DOM-4: aggregated free/busy view. Pure function, no Spring, no
+ * Aggregated free/busy view. Pure function, no Spring, no
  * repository access — operates on an already-loaded slot list. Gaps in the
  * window with no slot become UNAVAILABLE; adjacent intervals of the same
  * coverage are merged.

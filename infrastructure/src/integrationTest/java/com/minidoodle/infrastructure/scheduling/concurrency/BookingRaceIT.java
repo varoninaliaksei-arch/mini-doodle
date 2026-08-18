@@ -43,25 +43,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * SCOPE-2 (01-DECISIONS.md) mandatory deliverable: proves double-booking is
- * actually prevented under real concurrency, not just documented intent.
+ * Proves double-booking is actually prevented under real concurrency, not
+ * just documented intent.
  *
  * <p>This is a classic write-skew scenario — an invariant ("a slot has at
  * most one active meeting") spanning two rows with no natural row owner —
- * which READ_COMMITTED does not catch on its own (02-ARCHITECTURE.md §6).
- * Two independent transactions can each read the slot as FREE before
- * either commits; only a real serialization point at the database decides
- * the winner. Real concurrent HTTP traffic against a real Postgres
- * instance is the only way to prove that point actually holds — a MockMvc
- * test executes the whole stack synchronously on the calling thread and
- * never exercises real concurrent transactions, and an in-memory fake
- * repository has no serialization behavior to get wrong in the first
- * place.
+ * which READ_COMMITTED does not catch on its own. Two independent
+ * transactions can each read the slot as FREE before either commits; only
+ * a real serialization point at the database decides the winner. Real
+ * concurrent HTTP against a real Postgres instance is the only way to
+ * prove that: a MockMvc test runs the whole stack synchronously on one
+ * thread, and an in-memory fake repository has no serialization behavior
+ * to get wrong in the first place.
  *
- * <p>If any assertion here is ever not exactly what it claims, that is a
- * real correctness bug in the concurrency control or its exception
- * mapping — not a timing flake to retry away. No retry/backoff logic is
- * used to coax a passing result.
+ * <p>A failing assertion here is a real correctness bug in the
+ * concurrency control or its exception mapping, not a timing flake — no
+ * retry/backoff logic exists to coax a passing result.
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -123,27 +120,24 @@ class BookingRaceIT {
     }
 
     /**
-     * SCOPE-1's Idempotency-Key protects retry/double-click of one caller
-     * ("Retry or double-click of one request", 02-ARCHITECTURE.md §6) — it
-     * is not a distributed lock across independent concurrent actors. When
-     * two transactions race for the same key, JPA leaves no way to read
-     * the winner's row from inside the loser's now-rollback-only
+     * The Idempotency-Key header protects retry/double-click of one
+     * caller — it is not a distributed lock across independent concurrent
+     * actors. When two transactions race for the same key, JPA leaves no
+     * way to read the winner's row from inside the loser's now-rollback-only
      * transaction (see CreateBookingUseCase), so a loser that reaches the
      * write gets a clean 409, exactly as it would for any other lost
      * slot-booking race.
      *
      * <p>Note what this test does <em>not</em> assume: that exactly one of
      * the 50 requests reaches the write path at all. The CountDownLatch
-     * only synchronizes when each thread *starts*; a thread that starts a
-     * few microseconds later can still hit the idempotency pre-check
-     * *after* an earlier thread has already committed, and correctly
-     * short-circuits to 201 with the existing meeting rather than racing
-     * into conflict. Both outcomes are correct — the invariant this test
-     * actually proves is that every 201 carries the same meeting id and
-     * that any 409 always resolves to that same meeting on retry (the
-     * documented Idempotency-Key contract, not a flakiness workaround —
-     * the retry loop runs unconditionally, after the burst has settled,
-     * against a slot that's already BOOKED).
+     * only synchronizes when each thread *starts*; a thread starting a
+     * few microseconds later can hit the idempotency pre-check *after* an
+     * earlier thread has already committed, and correctly short-circuits
+     * to 201 with the existing meeting instead of racing into conflict.
+     * Both outcomes are correct — this test actually proves that every
+     * 201 carries the same meeting id, and that every 409 resolves to
+     * that same meeting when retried (the retry loop runs unconditionally
+     * after the burst settles, not to coax a pass).
      */
     @Test
     void concurrentIdenticalIdempotentBookingsNeverProduceMoreThanOneMeeting() throws Exception {

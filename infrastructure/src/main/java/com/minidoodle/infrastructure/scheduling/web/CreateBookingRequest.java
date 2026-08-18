@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * organizerId is deliberately absent — it comes from the X-User-Id header,
- * not the body (write on your own behalf only, per TECH-6). Likewise the
+ * not the body (write on your own behalf only). Likewise the
  * idempotency key travels as the optional Idempotency-Key header, not here.
  */
 @Schema(description = "organizerId comes from the X-User-Id header, not this body. An optional "
