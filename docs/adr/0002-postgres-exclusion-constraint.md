@@ -25,12 +25,17 @@ ALTER TABLE time_slots ADD CONSTRAINT no_overlapping_slots
 ```
 The database evaluates the predicate as part of the write — a
 generalization of a plain `UNIQUE` constraint, from equality to range
-overlap via GiST. `@Version` (optimistic locking) sits on top purely to
-turn the resulting `SQLException` into a clean `409`; the constraint
-remains the actual source of truth. Alternatives rejected: `SELECT FOR
-UPDATE` (serializes all writes to a calendar), a Redis lock (a *weaker*
-guarantee than the database — a regression, not an optimization), an
-in-application overlap check (a race by construction).
+overlap via GiST. A constraint violation surfaces to the application layer
+as Spring's `DataIntegrityViolationException`, caught at the use-case
+boundary and translated into a `409`; the constraint remains the actual
+source of truth, this is only exception translation. `@Version`
+(optimistic locking) is a separate, complementary mechanism layered on
+top — it catches a *different* case, a stale concurrent update to the same
+row, surfaced as `ObjectOptimisticLockingFailureException` and mapped to
+`409` the same way. Alternatives rejected: `SELECT FOR UPDATE` (serializes
+all writes to a calendar), a Redis lock (a *weaker* guarantee than the
+database — a regression, not an optimization), an in-application overlap
+check (a race by construction).
 
 ## Consequences
 Holds regardless of the number of application instances and cannot be
