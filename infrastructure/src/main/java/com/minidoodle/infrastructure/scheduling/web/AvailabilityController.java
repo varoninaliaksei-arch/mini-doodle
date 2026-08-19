@@ -27,7 +27,15 @@ class AvailabilityController {
             MeterRegistry meterRegistry) {
         this.getAvailabilityUseCase = getAvailabilityUseCase;
         this.mapper = mapper;
-        this.windowDaysSummary = DistributionSummary.builder("freebusy.query.window.days").register(meterRegistry);
+        // Bounds match TECH-7's 90-day cap. Without them, Micrometer's default
+        // percentile-histogram bucket generator has no domain to size itself
+        // to and produces ~280 exponentially-growing buckets up to ~4.2e18 -
+        // technically correct (the recorded value itself is fine, always a
+        // whole day count) but useless as a heatmap Y-axis.
+        this.windowDaysSummary = DistributionSummary.builder("freebusy.query.window.days")
+                .minimumExpectedValue(1.0)
+                .maximumExpectedValue(90.0)
+                .register(meterRegistry);
     }
 
     @GetMapping("/availability")
