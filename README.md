@@ -227,6 +227,14 @@ unneeded machinery:
 - **No TTL holds/reservations on a slot.** Booking is a single atomic
   `POST /bookings`; there is no multi-step pick → pay → confirm flow, so
   there is nothing to hold between steps.
+- **Slot duration is unconstrained.** `POST /slots`' `startsAt`/`endsAt`,
+  or `POST /slots/bulk`'s `slotDuration`, has no minimum or maximum
+  enforced — any positive duration is accepted, from seconds to days.
+  This is deliberate: the brief doesn't specify fixed durations, and the
+  exclusion constraint (the concurrency mechanism) only checks for
+  overlap, not interval length. Left as an explicit design choice rather
+  than an arbitrary limit; would add a sane min/max (e.g. 1 minute–24
+  hours) if a product requirement called for it.
 
 ## 7. What I would do with more time
 
