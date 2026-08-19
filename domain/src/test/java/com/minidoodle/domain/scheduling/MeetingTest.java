@@ -62,7 +62,7 @@ class MeetingTest {
     void pullEventsDrainsTheEventList() {
         Meeting meeting = Meeting.schedule(slotId, details, participants, "key-1");
 
-        assertTrue(meeting.pullEvents().size() == 1);
+        assertEquals(1, meeting.pullEvents().size());
         assertTrue(meeting.pullEvents().isEmpty());
     }
 }

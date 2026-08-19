@@ -45,7 +45,11 @@ public final class Meeting {
     }
 
     public void cancel() {
-        requireStatus(MeetingStatus.SCHEDULED, "cancel");
+        if (status != MeetingStatus.SCHEDULED) {
+            throw new IllegalStateException(
+                    "Cannot cancel meeting %s: expected status %s but was %s"
+                            .formatted(id, MeetingStatus.SCHEDULED, status));
+        }
         status = MeetingStatus.CANCELLED;
         events.add(new MeetingCancelled(id, slotId));
     }
@@ -54,14 +58,6 @@ public final class Meeting {
         List<MeetingEvent> pulled = List.copyOf(events);
         events.clear();
         return pulled;
-    }
-
-    private void requireStatus(MeetingStatus required, String operation) {
-        if (status != required) {
-            throw new IllegalStateException(
-                    "Cannot %s meeting %s: expected status %s but was %s"
-                            .formatted(operation, id, required, status));
-        }
     }
 
     /**

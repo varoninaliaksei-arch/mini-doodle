@@ -8,12 +8,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.minidoodle.application.scheduling.exception.NotOwnerException;
-import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
-import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.application.scheduling.exception.SlotVersionConflictException;
-import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
@@ -33,18 +29,7 @@ public class UpdateSlotUseCase {
     @Transactional
     public TimeSlot execute(UUID slotId, UUID callerId, Optional<Instant> newStart, Optional<Instant> newEnd,
             long expectedVersion) {
-        TimeSlot current = timeSlotRepository.findById(slotId)
-                .orElseThrow(() -> new SlotNotFoundException(slotId));
-
-        if (!current.calendarId().equals(callerId)) {
-            throw new NotOwnerException("slot", slotId);
-        }
-        if (current.status() == SlotStatus.BOOKED) {
-            throw new SlotBookedException(slotId);
-        }
-        if (current.version() != expectedVersion) {
-            throw new SlotVersionConflictException(slotId, expectedVersion, current.version());
-        }
+        TimeSlot current = SlotMutationGuard.requireMutable(timeSlotRepository, slotId, callerId, expectedVersion);
 
         TimeInterval merged = new TimeInterval(
                 newStart.orElse(current.interval().start()),

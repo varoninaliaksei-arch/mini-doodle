@@ -154,7 +154,7 @@ class BookingRaceIT {
 
         List<String> distinctWinningMeetingIds = responses.stream()
                 .filter(r -> r.statusCode() == 201)
-                .map(r -> readField(r.body(), "id"))
+                .map(r -> readMeetingId(r.body()))
                 .distinct()
                 .toList();
         assertEquals(1, distinctWinningMeetingIds.size(),
@@ -166,7 +166,7 @@ class BookingRaceIT {
         for (int i = 0; i < initialLosers.size(); i++) {
             HttpResponse<String> retry = sendBookingRequest(idempotencyKey, "Retry-" + i);
             assertEquals(201, retry.statusCode(), () -> "expected retry to succeed: " + retry.body());
-            assertEquals(winningMeetingId, readField(retry.body(), "id"),
+            assertEquals(winningMeetingId, readMeetingId(retry.body()),
                     "retry must return the same meeting the original winner got");
         }
 
@@ -233,10 +233,10 @@ class BookingRaceIT {
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    private String readField(String responseBody, String field) {
+    private String readMeetingId(String responseBody) {
         try {
             JsonNode node = objectMapper.readTree(responseBody);
-            return node.get(field).asText();
+            return node.get("id").asText();
         } catch (Exception e) {
             throw new AssertionError("Failed to parse response body: " + responseBody, e);
         }

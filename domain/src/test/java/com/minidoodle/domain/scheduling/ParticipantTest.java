@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -25,7 +26,7 @@ class ParticipantTest {
         Participant a = new Participant("a@example.com", "Alice", null);
         Participant b = new Participant("b@example.com", "Alice", null);
 
-        assertEquals(false, a.equals(b));
+        assertNotEquals(a, b);
     }
 
     @Test
