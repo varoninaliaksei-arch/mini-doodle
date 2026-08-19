@@ -133,11 +133,17 @@ class BookingRaceIT {
      * only synchronizes when each thread *starts*; a thread starting a
      * few microseconds later can hit the idempotency pre-check *after* an
      * earlier thread has already committed, and correctly short-circuits
-     * to 201 with the existing meeting instead of racing into conflict.
-     * Both outcomes are correct — this test actually proves that every
-     * 201 carries the same meeting id, and that every 409 resolves to
-     * that same meeting when retried (the retry loop runs unconditionally
-     * after the burst settles, not to coax a pass).
+     * to 200 with the existing meeting instead of racing into conflict —
+     * 200, not 201, because nothing new was created on that short-circuit
+     * path (see {@code BookingResult.created()} /
+     * {@code BookingController.create()}). All three outcomes (201 for
+     * the actual creator, 200 for a burst-time replay hit, 409 for a
+     * genuine lost race) are correct — this test actually proves that
+     * every successful (200 or 201) response carries the same meeting id,
+     * and that every 409 resolves to that same meeting — via 200, since a
+     * retry always finds the meeting already created — when retried (the
+     * retry loop runs unconditionally after the burst settles, not to
+     * coax a pass).
      */
     @Test
     void concurrentIdenticalIdempotentBookingsNeverProduceMoreThanOneMeeting() throws Exception {
@@ -147,25 +153,28 @@ class BookingRaceIT {
 
         for (HttpResponse<String> response : responses) {
             int status = response.statusCode();
-            if (status != 201 && status != 409) {
-                fail("expected every response to be 201 or 409, got " + status + ": " + response.body());
+            if (status != 200 && status != 201 && status != 409) {
+                fail("expected every response to be 200, 201, or 409, got " + status + ": " + response.body());
             }
         }
 
         List<String> distinctWinningMeetingIds = responses.stream()
-                .filter(r -> r.statusCode() == 201)
+                .filter(r -> r.statusCode() == 200 || r.statusCode() == 201)
                 .map(r -> readMeetingId(r.body()))
                 .distinct()
                 .toList();
         assertEquals(1, distinctWinningMeetingIds.size(),
-                () -> "expected every 201 response to carry the same meeting id; got: " + distinctWinningMeetingIds
-                        + "\nfull responses:\n" + summarize(responses));
+                () -> "expected every 200/201 response to carry the same meeting id; got: "
+                        + distinctWinningMeetingIds + "\nfull responses:\n" + summarize(responses));
         String winningMeetingId = distinctWinningMeetingIds.get(0);
 
         List<HttpResponse<String>> initialLosers = responses.stream().filter(r -> r.statusCode() == 409).toList();
         for (int i = 0; i < initialLosers.size(); i++) {
             HttpResponse<String> retry = sendBookingRequest(idempotencyKey, "Retry-" + i);
-            assertEquals(201, retry.statusCode(), () -> "expected retry to succeed: " + retry.body());
+            // Always 200, never 201: by the time this retry loop runs (after the
+            // burst has fully settled), the meeting is already created, so every
+            // retry deterministically hits the idempotency-key short-circuit.
+            assertEquals(200, retry.statusCode(), () -> "expected retry to succeed via replay: " + retry.body());
             assertEquals(winningMeetingId, readMeetingId(retry.body()),
                     "retry must return the same meeting the original winner got");
         }

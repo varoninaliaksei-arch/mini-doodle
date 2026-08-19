@@ -9,11 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import tools.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.exception.SlotBlockedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.domain.scheduling.Meeting;
 import com.minidoodle.domain.scheduling.MeetingDetails;
 import com.minidoodle.domain.scheduling.Participant;
+import com.minidoodle.domain.scheduling.SlotStatus;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 /**
@@ -37,17 +39,21 @@ public class CreateBookingUseCase {
     }
 
     @Transactional
-    public Meeting execute(UUID slotId, MeetingDetails details, List<Participant> participants,
+    public BookingResult execute(UUID slotId, MeetingDetails details, List<Participant> participants,
             String idempotencyKey) {
         if (idempotencyKey != null) {
             Optional<Meeting> existing = meetingRepository.findByIdempotencyKey(idempotencyKey);
             if (existing.isPresent()) {
-                return existing.get();
+                return new BookingResult(existing.get(), false);
             }
         }
 
         TimeSlot slot = timeSlotRepository.findById(slotId)
                 .orElseThrow(() -> new SlotNotFoundException(slotId));
+
+        if (slot.status() == SlotStatus.BLOCKED) {
+            throw new SlotBlockedException(slotId);
+        }
 
         try {
             slot.book();
@@ -82,6 +88,6 @@ public class CreateBookingUseCase {
 
         meeting.pullEvents().forEach(event -> outboxEventRepository.save(outboxEventFactory.from(event)));
 
-        return saved;
+        return new BookingResult(saved, true);
     }
 }

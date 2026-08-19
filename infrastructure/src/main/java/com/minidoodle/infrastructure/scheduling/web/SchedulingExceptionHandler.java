@@ -1,15 +1,21 @@
 package com.minidoodle.infrastructure.scheduling.web;
 
 import java.net.URI;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.minidoodle.application.scheduling.exception.BulkSlotLimitExceededException;
 import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
 import com.minidoodle.application.scheduling.exception.NotOwnerException;
+import com.minidoodle.application.scheduling.exception.SlotBlockedException;
 import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
@@ -32,6 +38,11 @@ class SchedulingExceptionHandler {
     @ExceptionHandler(SlotBookedException.class)
     ProblemDetail handleSlotBooked(SlotBookedException e) {
         return problem(HttpStatus.CONFLICT, "/problems/slot-booked", "Slot is booked", e.getMessage());
+    }
+
+    @ExceptionHandler(SlotBlockedException.class)
+    ProblemDetail handleSlotBlocked(SlotBlockedException e) {
+        return problem(HttpStatus.CONFLICT, "/problems/slot-blocked", "Slot blocked", e.getMessage());
     }
 
     @ExceptionHandler(SlotVersionConflictException.class)
@@ -82,6 +93,40 @@ class SchedulingExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail handleIllegalArgument(IllegalArgumentException e) {
         return problem(HttpStatus.BAD_REQUEST, "/problems/invalid-request", "Invalid request", e.getMessage());
+    }
+
+    /**
+     * Request body missing entirely or unparsable as JSON — Spring MVC
+     * rejects this during binding, before the request ever reaches a use
+     * case. Without this handler it falls through to Spring Boot's default
+     * Whitelabel error shape instead of {@link ProblemDetail} like every
+     * other error response in this API.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail handleMessageNotReadable(HttpMessageNotReadableException e) {
+        return problem(HttpStatus.BAD_REQUEST, "/problems/validation-error", "Validation error",
+                "Request body is missing or malformed: " + e.getMostSpecificCause().getMessage());
+    }
+
+    /** {@code @Valid}-annotated request body failed bean validation. */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ProblemDetail handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        String detail = e.getBindingResult().getFieldErrors().stream()
+                .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return problem(HttpStatus.BAD_REQUEST, "/problems/validation-error", "Validation error", detail);
+    }
+
+    /** A required {@code @RequestParam} (e.g. {@code ownerId}, {@code from}) is missing. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ProblemDetail handleMissingRequestParameter(MissingServletRequestParameterException e) {
+        return problem(HttpStatus.BAD_REQUEST, "/problems/validation-error", "Validation error", e.getMessage());
+    }
+
+    /** A path/query parameter couldn't be converted to its declared type (e.g. a malformed UUID or Instant). */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        return problem(HttpStatus.BAD_REQUEST, "/problems/validation-error", "Validation error", e.getMessage());
     }
 
     private static ProblemDetail problem(HttpStatus status, String typePath, String title, String detail) {

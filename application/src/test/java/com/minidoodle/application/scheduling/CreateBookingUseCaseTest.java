@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import tools.jackson.databind.ObjectMapper;
 
+import com.minidoodle.application.scheduling.exception.SlotBlockedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
 import com.minidoodle.domain.scheduling.Meeting;
@@ -19,6 +20,7 @@ import com.minidoodle.domain.scheduling.TimeInterval;
 import com.minidoodle.domain.scheduling.TimeSlot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,8 +43,10 @@ class CreateBookingUseCaseTest {
         TimeSlot slot = TimeSlot.free(UUID.randomUUID(), UUID.randomUUID(), INTERVAL);
         timeSlotRepository.seed(slot);
 
-        Meeting meeting = useCase.execute(slot.id(), details, participants, "key-1");
+        BookingResult result = useCase.execute(slot.id(), details, participants, "key-1");
 
+        assertTrue(result.created(), "a freshly booked slot must report created=true");
+        Meeting meeting = result.meeting();
         assertEquals(MeetingStatus.SCHEDULED, meeting.status());
         assertEquals(SlotStatus.BOOKED, timeSlotRepository.findById(slot.id()).orElseThrow().status());
         assertEquals(1, outboxEventRepository.saved.size());
@@ -58,9 +62,10 @@ class CreateBookingUseCaseTest {
         existing.pullEvents();
         meetingRepository.seed(existing);
 
-        Meeting result = useCase.execute(slot.id(), details, participants, "key-1");
+        BookingResult result = useCase.execute(slot.id(), details, participants, "key-1");
 
-        assertSame(existing, result);
+        assertSame(existing, result.meeting());
+        assertFalse(result.created(), "an idempotency-key replay must report created=false");
         assertEquals(SlotStatus.FREE, timeSlotRepository.findById(slot.id()).orElseThrow().status());
         assertTrue(outboxEventRepository.saved.isEmpty());
     }
@@ -86,5 +91,23 @@ class CreateBookingUseCaseTest {
 
         assertThrows(SlotConflictException.class,
                 () -> useCase.execute(slot.id(), details, participants, "key-1"));
+    }
+
+    /**
+     * A BLOCKED slot isn't bookable either, but for a different reason
+     * than an actual booking conflict — the owner blocked it manually, no
+     * one else booked it. Must surface a distinct exception/message rather
+     * than the generic "already booked" one.
+     */
+    @Test
+    void bookingABlockedSlotThrowsSlotBlockedWithDistinctMessage() {
+        TimeSlot slot = new TimeSlot(UUID.randomUUID(), UUID.randomUUID(), INTERVAL, SlotStatus.BLOCKED, 0L);
+        timeSlotRepository.seed(slot);
+
+        SlotBlockedException exception = assertThrows(SlotBlockedException.class,
+                () -> useCase.execute(slot.id(), details, participants, "key-1"));
+        assertTrue(exception.getMessage().contains("blocked"),
+                () -> "expected a message naming the block, got: " + exception.getMessage());
+        assertEquals(SlotStatus.BLOCKED, timeSlotRepository.findById(slot.id()).orElseThrow().status());
     }
 }

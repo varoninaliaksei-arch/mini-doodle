@@ -2,6 +2,7 @@ package com.minidoodle.infrastructure.scheduling.web;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -11,8 +12,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import com.minidoodle.application.scheduling.BlockSlotUseCase;
 import com.minidoodle.application.scheduling.CancelMeetingUseCase;
+import com.minidoodle.application.scheduling.CreateBookingUseCase;
 import com.minidoodle.application.scheduling.CreateSlotUseCase;
 import com.minidoodle.application.scheduling.CreateSlotsBulkUseCase;
 import com.minidoodle.application.scheduling.DeleteSlotUseCase;
@@ -22,6 +26,7 @@ import com.minidoodle.application.scheduling.UpdateSlotUseCase;
 import com.minidoodle.application.scheduling.exception.BulkSlotLimitExceededException;
 import com.minidoodle.application.scheduling.exception.MeetingNotFoundException;
 import com.minidoodle.application.scheduling.exception.NotOwnerException;
+import com.minidoodle.application.scheduling.exception.SlotBlockedException;
 import com.minidoodle.application.scheduling.exception.SlotBookedException;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
@@ -54,6 +59,7 @@ class SchedulingExceptionHandlerTest {
     private final UnblockSlotUseCase unblockSlotUseCase = mock(UnblockSlotUseCase.class);
     private final ListSlotsUseCase listSlotsUseCase = mock(ListSlotsUseCase.class);
     private final CancelMeetingUseCase cancelMeetingUseCase = mock(CancelMeetingUseCase.class);
+    private final CreateBookingUseCase createBookingUseCase = mock(CreateBookingUseCase.class);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private MockMvc mockMvc;
@@ -68,7 +74,9 @@ class SchedulingExceptionHandlerTest {
                 updateSlotUseCase, deleteSlotUseCase, blockSlotUseCase, unblockSlotUseCase, listSlotsUseCase,
                 new SlotWebMapper());
         MeetingController meetingController = new MeetingController(cancelMeetingUseCase, new MeetingWebMapper());
-        mockMvc = MockMvcBuilders.standaloneSetup(slotController, meetingController)
+        BookingController bookingController = new BookingController(createBookingUseCase, new MeetingWebMapper(),
+                new SimpleMeterRegistry());
+        mockMvc = MockMvcBuilders.standaloneSetup(slotController, meetingController, bookingController)
                 .setControllerAdvice(new SchedulingExceptionHandler())
                 .build();
     }
@@ -97,6 +105,21 @@ class SchedulingExceptionHandlerTest {
                         .content(objectMapper.writeValueAsString(new UpdateSlotRequest(null, null, 0L))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.type").value("/problems/slot-booked"));
+    }
+
+    @Test
+    void slotBlockedMapsTo409WithDistinctType() throws Exception {
+        UUID slotId = UUID.randomUUID();
+        when(createBookingUseCase.execute(any(), any(), any(), any())).thenThrow(new SlotBlockedException(slotId));
+
+        CreateBookingRequest request = new CreateBookingRequest(slotId, "Sync", "d", List.of());
+
+        mockMvc.perform(post("/bookings")
+                        .header("X-User-Id", SLOT_ID.toString())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("/problems/slot-blocked"));
     }
 
     @Test
@@ -234,5 +257,41 @@ class SchedulingExceptionHandlerTest {
                         .content("{\"endsAt\":\"" + END + "\",\"slotDuration\":\"PT30M\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.type").value("/problems/invalid-request"));
+    }
+
+    /**
+     * DELETE /slots/{id} requires a body carrying {@code version} — a
+     * request sent with no body at all fails Spring MVC's binding before
+     * the request ever reaches a use case, and must still map to
+     * ProblemDetail rather than Spring Boot's default Whitelabel shape.
+     */
+    @Test
+    void deleteWithMissingBodyMapsTo400ProblemDetail() throws Exception {
+        mockMvc.perform(delete("/slots/{id}", SLOT_ID)
+                        .header("X-User-Id", SLOT_ID.toString())
+                        .contentType("application/json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/validation-error"));
+    }
+
+    /** A malformed (non-ISO-8601) query parameter fails type conversion before reaching a use case. */
+    @Test
+    void malformedQueryParameterMapsTo400ProblemDetail() throws Exception {
+        mockMvc.perform(get("/slots")
+                        .param("ownerId", SLOT_ID.toString())
+                        .param("from", "not-an-instant")
+                        .param("to", END.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/validation-error"));
+    }
+
+    /** A required query parameter with no default (here, {@code ownerId}) missing entirely. */
+    @Test
+    void missingRequiredQueryParameterMapsTo400ProblemDetail() throws Exception {
+        mockMvc.perform(get("/slots")
+                        .param("from", START.toString())
+                        .param("to", END.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/validation-error"));
     }
 }

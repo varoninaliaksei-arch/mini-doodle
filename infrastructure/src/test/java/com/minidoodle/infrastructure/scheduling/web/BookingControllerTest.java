@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
+import com.minidoodle.application.scheduling.BookingResult;
 import com.minidoodle.application.scheduling.CreateBookingUseCase;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
@@ -54,7 +55,8 @@ class BookingControllerTest {
         Meeting meeting = Meeting.schedule(slotId,
                 new MeetingDetails("Sync", "weekly sync", organizerId),
                 List.of(new Participant("a@example.com", "Alice", null)), "key-1");
-        when(createBookingUseCase.execute(eq(slotId), any(), any(), eq("key-1"))).thenReturn(meeting);
+        when(createBookingUseCase.execute(eq(slotId), any(), any(), eq("key-1")))
+                .thenReturn(new BookingResult(meeting, true));
 
         CreateBookingRequest request = new CreateBookingRequest(slotId, "Sync", "weekly sync",
                 List.of(new ParticipantRequest("a@example.com", "Alice", null)));
@@ -74,11 +76,39 @@ class BookingControllerTest {
     }
 
     @Test
+    void idempotentReplayReturns200WithTheSameMeetingNotACreated201() throws Exception {
+        UUID organizerId = UUID.randomUUID();
+        UUID slotId = UUID.randomUUID();
+        Meeting existing = Meeting.schedule(slotId,
+                new MeetingDetails("Sync", "weekly sync", organizerId),
+                List.of(new Participant("a@example.com", "Alice", null)), "key-1");
+        when(createBookingUseCase.execute(eq(slotId), any(), any(), eq("key-1")))
+                .thenReturn(new BookingResult(existing, false));
+
+        CreateBookingRequest request = new CreateBookingRequest(slotId, "Sync", "weekly sync",
+                List.of(new ParticipantRequest("a@example.com", "Alice", null)));
+
+        mockMvc.perform(post("/bookings")
+                        .header("X-User-Id", organizerId.toString())
+                        .header("Idempotency-Key", "key-1")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(existing.id().toString()))
+                .andExpect(jsonPath("$.status").value("SCHEDULED"));
+
+        assertEquals(1.0, counter("success"));
+        assertEquals(0.0, counter("conflict"));
+        assertEquals(0.0, counter("not_found"));
+    }
+
+    @Test
     void idempotencyKeyIsOptional() throws Exception {
         UUID organizerId = UUID.randomUUID();
         UUID slotId = UUID.randomUUID();
         Meeting meeting = Meeting.schedule(slotId, new MeetingDetails("Sync", "d", organizerId), List.of(), null);
-        when(createBookingUseCase.execute(eq(slotId), any(), any(), isNull())).thenReturn(meeting);
+        when(createBookingUseCase.execute(eq(slotId), any(), any(), isNull()))
+                .thenReturn(new BookingResult(meeting, true));
 
         CreateBookingRequest request = new CreateBookingRequest(slotId, "Sync", "d", List.of());
 

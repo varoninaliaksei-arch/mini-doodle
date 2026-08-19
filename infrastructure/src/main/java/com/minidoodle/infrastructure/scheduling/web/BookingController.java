@@ -14,10 +14,10 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 
+import com.minidoodle.application.scheduling.BookingResult;
 import com.minidoodle.application.scheduling.CreateBookingUseCase;
 import com.minidoodle.application.scheduling.exception.SlotConflictException;
 import com.minidoodle.application.scheduling.exception.SlotNotFoundException;
-import com.minidoodle.domain.scheduling.Meeting;
 import com.minidoodle.domain.scheduling.MeetingDetails;
 import com.minidoodle.domain.scheduling.Participant;
 
@@ -54,9 +54,11 @@ class BookingController {
 
         Timer.Sample sample = Timer.start();
         try {
-            Meeting meeting = createBookingUseCase.execute(request.slotId(), details, participants, idempotencyKey);
+            BookingResult result = createBookingUseCase.execute(request.slotId(), details, participants,
+                    idempotencyKey);
             successCounter.increment();
-            return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(meeting));
+            HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+            return ResponseEntity.status(status).body(mapper.toResponse(result.meeting()));
         } catch (SlotConflictException e) {
             conflictCounter.increment();
             throw e;
