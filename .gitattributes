@@ -1,0 +1,19 @@
+# Shell scripts (gradlew in particular) must stay LF regardless of the
+# checking-out OS: gradlew's shebang (#!/bin/sh) breaks if CRLF-corrupted,
+# which fails `docker compose up --build` inside the Linux build container
+# with "./gradlew: not found" on a Windows clone with core.autocrlf=true.
+
+* text=auto eol=lf
+
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+*.sh text eol=lf
+*.java text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.gradle.kts text eol=lf
+
+gradle-wrapper.jar binary
