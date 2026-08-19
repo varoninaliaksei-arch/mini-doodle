@@ -138,40 +138,31 @@ real would need.
 ## 5. Key design decisions
 
 **The Postgres exclusion constraint is the concurrency mechanism, not
-application code.** Non-overlap of slots within a calendar is an invariant
-across multiple rows with no natural row owner — two concurrent inserts can
-each see a valid state and both commit, which is write skew, and
-`READ COMMITTED` does not catch it. Rather than `SERIALIZABLE` isolation
-(expensive, rollback-prone under load) or an application-level check (a
-race by construction), the invariant is pushed into the database:
+application code.** Slot non-overlap is a multi-row invariant with no
+natural owner, which plain `READ COMMITTED` can't enforce — so the check is
+pushed into the database instead of application code or `SERIALIZABLE`
+isolation:
 ```sql
 EXCLUDE USING gist (calendar_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&)
 ```
-This holds regardless of replica count and can't be bypassed by a
-service-layer bug; the required GiST index is reused by the free/busy read
-path for free. A violation surfaces as Spring's
-`DataIntegrityViolationException`, caught at the use-case boundary and
-mapped to a clean `409` — the constraint remains the actual source of
-truth, this is only exception translation. `@Version` is a separate
-mechanism on top of it, catching stale concurrent updates to the same row
-(`ObjectOptimisticLockingFailureException`), mapped to `409` the same way.
-Verified directly by `BookingRaceIT` (§10). See
+A violation surfaces as `DataIntegrityViolationException`, mapped to a
+`409`; `@Version` is a separate, complementary check for stale concurrent
+updates to the same row. Verified directly by `BookingRaceIT` (§10) — full
+reasoning and alternatives considered in
 [`docs/adr/0002-postgres-exclusion-constraint.md`](docs/adr/0002-postgres-exclusion-constraint.md).
 
-**Consistency is strict by construction, not as a CAP trade-off.** With a
-single Postgres node there is no network partition inside the storage
-layer, so CAP does not literally apply — the booking invariant is enforced
-transactionally against one source of truth. CAP becomes real only at the
-read-replica step of the scaling path (§8): free/busy reads would become
-eventually consistent against a replica while bookings stay strictly
-consistent against the primary. That split — by consistency requirement,
-not by convenience — is deliberate.
+**Consistency is strict by construction, not a CAP trade-off.** A single
+Postgres node has no network partition inside the storage layer, so CAP
+doesn't literally apply yet — it becomes real only at the read-replica step
+of the scaling path (§8), where free/busy reads go eventually consistent
+against a replica while bookings stay strictly consistent against the
+primary. That split is by consistency requirement, not convenience.
 
 **Redis and Kafka are excluded deliberately, with named thresholds, not
 because they were overlooked.** At the stated scale (~10⁴ slot rows,
 bookings rare, read:write ≳ 20:1), adding a broker or cache to the base
-compose profile would signal an inability to estimate load rather than an
-ability to plan for it.
+compose profile would signal an inability to estimate load, not an ability
+to plan for it.
 
 | Component | Verdict | Reconsider when |
 |---|---|---|
@@ -185,11 +176,12 @@ See [`docs/adr/0004-no-redis-no-kafka.md`](docs/adr/0004-no-redis-no-kafka.md).
 
 **Booking events go through a transactional outbox, not a broker, because
 no consumer exists yet.** `outbox_events` is written in the same
-transaction as the slot and meeting writes; a `@Scheduled` publisher drains
-it (logs today, swaps to `KafkaTemplate` later without touching the write
-path). This solves the dual-write problem without standing up
-infrastructure for a consumer that doesn't exist. See
-[`docs/adr/0003-transactional-outbox.md`](docs/adr/0003-transactional-outbox.md).
+transaction as the slot and meeting writes, and a `@Scheduled` publisher
+drains it — logging today, swapping to `KafkaTemplate` later without
+touching the write path. See
+[`docs/adr/0003-transactional-outbox.md`](docs/adr/0003-transactional-outbox.md)
+for why this avoids the dual-write problem without standing up broker
+infrastructure for a consumer that doesn't exist.
 
 **Three distinct concurrency mechanisms address three distinct
 situations** — conflating them would either weaken a guarantee or add
@@ -246,47 +238,40 @@ what was deliberately cut within the assignment's current scope:
   every endpoint (only the booking race is Testcontainers-backed today).
 - `POST /meetings/{id}/reschedule` as a distinct operation from cancel +
   recreate, with its own participant-notification semantics.
-- Locking participant calendars in addition to the owner's — currently
-  booking only locks the slot owner's calendar; participants receive no
-  calendar hold at all, since they aren't modeled as users (§6).
+- Locking participant calendars in addition to the owner's — today only
+  the owner's slot is locked, since participants aren't modeled as users
+  (§6).
 - `Idempotency-Key` support on other write endpoints (slot create/update,
   cancel) — currently only `POST /bookings` has it.
 - Audit history on slot/meeting state transitions, rather than only the
   current state.
-- A persisted `Calendar` (and `User`) table, rather than using
-  `X-User-Id` directly as `calendarId` (§4). Needed once a calendar has to
-  hold more than an identity — e.g. a per-user timezone for rendering, or
-  a single user owning more than one calendar.
-- The `scale` profile (nginx + 2 `app` replicas) — the race test
-  (`BookingRaceIT`, §10) is the mandatory proof that the exclusion
-  constraint holds; the profile itself was scoped as "if time remains"
-  and cut, since it proves the same guarantee isn't sitting in
-  application memory, which a single-process Testcontainers run can't
-  demonstrate on its own.
-- Ordering same-aggregate outbox events across `app` replicas — under the
-  (currently unbuilt) `scale` profile, two instances each running their
-  own `OutboxPublisher` poll with `FOR UPDATE SKIP LOCKED`, which lets a
-  second instance pick up a different unlocked row rather than wait; two
-  events for the same meeting (e.g. booked, then cancelled) aren't
-  guaranteed to publish in that order. Not an issue with one instance
-  (today's actual deployment); once a real broker exists, keying Kafka
-  partitions on the event's `aggregateId` restores per-aggregate
-  ordering for free.
-- Swapping `EventSink`'s `LoggingEventSink` implementation for a
-  `KafkaTemplate`-backed one — no write-path change, since the outbox
-  table and `OutboxPublisher` already exist for exactly this purpose
-  ([`docs/adr/0003-transactional-outbox.md`](docs/adr/0003-transactional-outbox.md)).
-  Deferred because no consumer exists yet to publish to.
-- Redis in front of `GET /availability`, but only as a cache and only if
-  Postgres read latency stops meeting SLA at a higher row count than
-  today's ~10⁴ slots — never as a lock, which would be a strictly weaker
-  guarantee than the exclusion constraint already in place regardless of
-  scale (§5).
-- PgBouncer, then read replicas for free/busy reads — the same `SCALE-1`
-  ladder already listed in §8, restated here because both are cut today,
-  not because the trigger differs: PgBouncer once connection count
-  approaches `max_connections`, replicas once read:write exceeds the
-  ~20:1 ratio already assumed at current scale (§5).
+- Clean up validation-error `detail` text — currently leaks the raw
+  exception message (full class/method signature) instead of a
+  human-readable string.
+- Lighter query for `findBySlotId`'s active-meeting check — it loads
+  full `Meeting` + participants today when it only needs id/status.
+- A persisted `Calendar` (and `User`) table instead of using `X-User-Id`
+  directly as `calendarId` (§4) — needed once a calendar must hold more
+  than an identity, e.g. a per-user timezone or one user owning multiple
+  calendars.
+- The `scale` profile (nginx + 2 `app` replicas) — scoped as "if time
+  remains" and cut; `BookingRaceIT` (§10) already proves the exclusion
+  constraint holds, just not yet with more than one instance.
+- Ordering same-aggregate outbox events across `app` replicas under the
+  (unbuilt) `scale` profile isn't guaranteed today — each
+  `OutboxPublisher` instance can claim rows independently; not an issue
+  with one instance, and a real broker fixes it by keying Kafka
+  partitions on `aggregateId`.
+- Swapping `EventSink`'s `LoggingEventSink` for a `KafkaTemplate`-backed
+  one — no write-path change needed
+  ([ADR 0003](docs/adr/0003-transactional-outbox.md)); deferred since no
+  consumer exists yet to publish to.
+- Redis in front of `GET /availability`, only as a cache if Postgres read
+  latency stops meeting SLA past ~10⁴ slots — never as a lock, a weaker
+  guarantee than the exclusion constraint (§5).
+- PgBouncer, then read replicas for free/busy — same ladder as §8;
+  PgBouncer once connections approach `max_connections`, replicas once
+  read:write exceeds ~20:1 (§5).
 
 ## 8. Scaling path
 
